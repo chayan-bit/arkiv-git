@@ -10,7 +10,7 @@ use arkiv_git_store::fake::FileMemArkiv;
 use arkiv_git_sync::git::Git;
 use arkiv_git_sync::ids::{parse_id, parse_url};
 use arkiv_git_sync::{Config, Keys, Push, Repo, Update, Want, sync};
-use common::*;
+use common::e2e::*;
 
 fn program(name: &str) -> String {
     let p = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("../../programs/{name}.rhai"));

@@ -130,6 +130,8 @@ impl RpcArkiv {
                     .map(Duration::from_secs);
                 match retry_after {
                     Some(d) if waited + d <= self.cfg.max_rate_wait => {
+                        // stderr only: stdout belongs to the git remote-helper protocol.
+                        eprintln!("arkiv-git: rate limited on {method}, retrying in {d:?}");
                         tokio::time::sleep(d).await;
                         waited += d;
                         continue;

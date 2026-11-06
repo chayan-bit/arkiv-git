@@ -3,7 +3,7 @@
 
 mod common;
 
-use common::*;
+use common::e2e::*;
 
 #[test]
 fn git_push_and_clone_through_the_remote_helper() {

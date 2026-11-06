@@ -11,6 +11,21 @@ Read-only numbers are in hand (measured on the Rabdi testnet or read from the no
 Funded numbers are in hand too (real receipts, largest create that mines, sponsor extension, patch semantics, expiry timing, throughput bursts), measured on 2026-11-06 for 0.0674 tGLM; the gate is closed.
 Open items from the funded run: no per-account pending limit was hit (200 accepted at once), the cause of the 16-per-block ceiling is unknown, and anonymous reads are metered, so P1 needs an Arkiv access key.
 
+### Live Rabdi gate (2026-11-07)
+
+All numbers MEASURED on Rabdi through the real `git push arkiv::` and `git clone arkiv::` binaries, every entity at a 1 day lifetime.
+
+- Size: 10 MiB of incompressible blobs in 161 chunks, all 161 live after the push.
+- Push of 10 MiB: 519.7 s over 261 blocks and 171 txs (161 chunks, manifest, refs, anchor and about 7 wallet top-ups).
+- Second small push: 30.0 s over 16 blocks and 4 txs.
+- Fresh clone in a second home: 13.2 s; HEAD, tree and blob bytes match and `git fsck --full --strict` is clean.
+- Replay: the old anchor and refs re-posted from a foreign address and the old anchor re-posted from the peer's own control address; a fresh clone still gets the newest head.
+- Stale head: a client holding the newest mark, served a view that hides the newest anchor with `entityNonce` lowered to match, gets `E_STALE_HEAD` (confirmed by a read-only recheck of the same repo after fixing a bug in the test's hiding proxy, which first made the check fail closed with `E_INCONSISTENT_VIEW`).
+- Base fee: 1 gwei at start and at peak during both pushes.
+- Rate limits: no 429 waits with the access key.
+- Net spend: 0.4352 tGLM for the whole run (preflight predicted 0.4437), funded with rolling top-ups from a 0.59 tGLM wallet, all leftovers swept back.
+- The push ran at about 0.6 chunks per block, well under the 4 per block pacing allows; per-tx RPC round trips (estimate, send, receipt polls) are the likely cause (not yet profiled).
+
 ## Headline numbers
 
 | Item | Value | Label |
