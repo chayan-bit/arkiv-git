@@ -24,7 +24,7 @@ use std::time::{Duration, Instant};
 use arkiv_git_core::{AnchorBody, Kind, Observed, RefsBody, Rid, chunk_count};
 use arkiv_git_store::{
     Address, Arkiv, B256, Operation, PipelineConfig, Query, QueryOpts, QueryPage, Receipt,
-    RpcArkiv, SignedTx, StoreError, TxHash, U256,
+    RpcArkiv, SignedTx, StoreError, TxHash, TxInfo, U256,
 };
 use arkiv_git_sync::write::{chunk_op, entity_op};
 use arkiv_git_sync::{Keys, observe};
@@ -470,6 +470,12 @@ impl Arkiv for Hiding<'_> {
     }
     async fn tx_count(&self, a: Address) -> Result<u64, StoreError> {
         self.inner.tx_count(a).await
+    }
+    async fn tx_count_mined(&self, a: Address) -> Result<u64, StoreError> {
+        self.inner.tx_count_mined(a).await
+    }
+    async fn transaction(&self, h: TxHash) -> Result<Option<TxInfo>, StoreError> {
+        self.inner.transaction(h).await
     }
     async fn estimate(&self, from: Address, ops: &[Operation]) -> Result<u64, StoreError> {
         self.inner.estimate(from, ops).await

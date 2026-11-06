@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use arkiv_git_store::fake::FileMemArkiv;
 use arkiv_git_store::{
     Address, Arkiv, Operation, Query, QueryOpts, QueryPage, Receipt, RpcArkiv, RpcConfig, SignedTx,
-    StoreError, TxHash, U256,
+    StoreError, TxHash, TxInfo, U256,
 };
 use arkiv_git_sync::Config;
 
@@ -125,6 +125,12 @@ impl Arkiv for Backend {
     }
     async fn tx_count(&self, a: Address) -> Result<u64, StoreError> {
         both!(self, b => b.tx_count(a).await)
+    }
+    async fn tx_count_mined(&self, a: Address) -> Result<u64, StoreError> {
+        both!(self, b => b.tx_count_mined(a).await)
+    }
+    async fn transaction(&self, h: TxHash) -> Result<Option<TxInfo>, StoreError> {
+        both!(self, b => b.transaction(h).await)
     }
     async fn estimate(&self, from: Address, ops: &[Operation]) -> Result<u64, StoreError> {
         both!(self, b => b.estimate(from, ops).await)

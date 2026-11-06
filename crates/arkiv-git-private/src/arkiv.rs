@@ -5,7 +5,7 @@
 
 use arkiv_git_store::{
     Address, Arkiv, Attrs, Operation, Query, QueryOpts, QueryPage, Receipt, SignedTx, StoreError,
-    TxHash, U256,
+    TxHash, TxInfo, U256,
 };
 
 use crate::entity::{EPOCH, HIDDEN, blind_pred, open_row, seal_op};
@@ -60,6 +60,12 @@ impl<A: Arkiv> Arkiv for Sealed<'_, A> {
     }
     async fn tx_count(&self, a: Address) -> Result<u64, StoreError> {
         self.inner.tx_count(a).await
+    }
+    async fn tx_count_mined(&self, a: Address) -> Result<u64, StoreError> {
+        self.inner.tx_count_mined(a).await
+    }
+    async fn transaction(&self, h: TxHash) -> Result<Option<TxInfo>, StoreError> {
+        self.inner.transaction(h).await
     }
     /// Estimates the sealed ops, so push cost predictions include padding.
     async fn estimate(&self, from: Address, ops: &[Operation]) -> Result<u64, StoreError> {

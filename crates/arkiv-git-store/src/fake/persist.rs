@@ -22,7 +22,7 @@ use alloy_primitives::{Address, TxHash, U256};
 use arkiv_bindings::Operation;
 
 use super::{MemArkiv, Pending};
-use crate::{Arkiv, Query, QueryOpts, QueryPage, Receipt, SignedTx, StoreError};
+use crate::{Arkiv, Query, QueryOpts, QueryPage, Receipt, SignedTx, StoreError, TxInfo};
 
 const TAG_CHAIN: u8 = b'C';
 const TAG_FUND: u8 = b'F';
@@ -239,6 +239,12 @@ impl Arkiv for FileMemArkiv {
     async fn tx_count(&self, a: Address) -> Result<u64, StoreError> {
         self.with(|m, _| now(m.tx_count(a)))
     }
+    async fn tx_count_mined(&self, a: Address) -> Result<u64, StoreError> {
+        self.with(|m, _| now(m.tx_count_mined(a)))
+    }
+    async fn transaction(&self, h: TxHash) -> Result<Option<TxInfo>, StoreError> {
+        self.with(|m, _| now(m.transaction(h)))
+    }
     async fn estimate(&self, from: Address, ops: &[Operation]) -> Result<u64, StoreError> {
         self.with(|m, _| now(m.estimate(from, ops)))
     }
@@ -329,6 +335,39 @@ mod tests {
         let est = a.estimate(key.address(), &[]).await;
         assert!(est.is_err(), "empty batch reverts");
         assert_eq!(a.chain_id().await.expect("id"), CHAIN);
+    }
+
+    #[tokio::test]
+    async fn transactions_survive_a_reopen() {
+        let dir = tempdir();
+        let path = dir.path().join("chain.log");
+        let a = FileMemArkiv::open(&path, CHAIN).expect("open");
+        let key = PrivateKeySigner::random();
+        a.fund(key.address(), U256::from(10u128.pow(20)))
+            .expect("fund");
+        let tx = SignedTx::sign(
+            &key,
+            CHAIN,
+            TxParams {
+                nonce: 0,
+                to: Address::repeat_byte(3),
+                value: U256::from(7),
+                input: Default::default(),
+                gas_limit: 21_000,
+                max_fee_per_gas: 2_000_000_000,
+                max_priority_fee_per_gas: 0,
+            },
+        )
+        .expect("sign");
+        let h = a.send(tx).await.expect("send");
+        a.mine().expect("mine");
+        let b = FileMemArkiv::open(&path, CHAIN).expect("reopen");
+        let t = b.transaction(h).await.expect("t").expect("replayed");
+        assert_eq!(
+            (t.from, t.to, t.value),
+            (key.address(), Some(Address::repeat_byte(3)), U256::from(7))
+        );
+        assert_eq!(b.tx_count_mined(key.address()).await.expect("n"), 1);
     }
 
     #[test]

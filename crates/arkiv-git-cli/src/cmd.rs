@@ -52,6 +52,9 @@ pub enum Cmd {
     /// Timelock encryption on drand quicknet: seal now, anyone opens at time T.
     #[command(subcommand)]
     Timelock(crate::timelock::TimelockCmd),
+    /// Accountable escrow: init, appoint, deposit, run the agent, audit.
+    #[command(subcommand)]
+    Escrow(crate::escrow::EscrowCmd),
 }
 
 #[derive(Debug, Subcommand)]
@@ -428,6 +431,12 @@ pub fn run(cli: &Cli) -> Result<()> {
     if let Cmd::Fund(FundArgs { dev: Some(_), .. }) = &cli.cmd {
         backend::require_mem()?;
     }
+    if let Some(r) = match &cli.cmd {
+        Cmd::Escrow(e) => crate::escrow::local(e, &home()),
+        _ => None,
+    } {
+        return r;
+    }
     crate::block_on(async {
         let (a, cfg) = backend::connect().await?;
         match &cli.cmd {
@@ -451,6 +460,7 @@ pub fn run(cli: &Cli) -> Result<()> {
             }
             Cmd::Fund(f) => fund_cmd(&a, &cfg, f).await,
             Cmd::Op(o) => crate::op::run(&a, &cfg, o).await,
+            Cmd::Escrow(e) => crate::escrow::run(&a, &cfg, e).await,
         }
     })?
 }

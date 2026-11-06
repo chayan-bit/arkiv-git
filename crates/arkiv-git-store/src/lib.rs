@@ -32,7 +32,7 @@ pub use query::{
 pub use rpc::{RpcArkiv, RpcConfig};
 pub use tx::{
     ARKIV_ADDRESS, BLOCK_GAS_LIMIT, MAX_RAW_TX_BYTES, RABDI_CHAIN_ID, RABDI_RPC, Receipt, SignedTx,
-    TX_GAS_CAP, TxParams, decode_revert, execute_calldata, op_calldata_bytes,
+    TX_GAS_CAP, TxInfo, TxParams, decode_revert, execute_calldata, op_calldata_bytes,
 };
 
 /// Everything arkiv-git asks of Arkiv (design 7.2).
@@ -57,6 +57,8 @@ pub trait Arkiv: Send + Sync {
     fn balance(&self, a: Address) -> impl Future<Output = Result<U256, StoreError>> + Send;
     /// Next nonce for `a`, counting txs the node holds as pending.
     fn tx_count(&self, a: Address) -> impl Future<Output = Result<u64, StoreError>> + Send;
+    /// Txs from `a` in mined blocks only (`latest`), unlike [`Arkiv::tx_count`].
+    fn tx_count_mined(&self, a: Address) -> impl Future<Output = Result<u64, StoreError>> + Send;
     /// Gas `execute(ops)` from `from` would use, or the decoded revert.
     fn estimate(
         &self,
@@ -74,4 +76,9 @@ pub trait Arkiv: Send + Sync {
     fn seal_ops(&self, ops: Vec<Operation>) -> Result<Vec<Operation>, StoreError> {
         Ok(ops)
     }
+    /// Sender, recipient and value of a tx, pending or mined; `None` if unknown.
+    fn transaction(
+        &self,
+        h: TxHash,
+    ) -> impl Future<Output = Result<Option<TxInfo>, StoreError>> + Send;
 }

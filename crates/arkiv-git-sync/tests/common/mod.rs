@@ -12,7 +12,7 @@ use arkiv_git_crypto::MasterSeed;
 use arkiv_git_store::fake::MemArkiv;
 use arkiv_git_store::{
     Address, Arkiv, Operation, Query, QueryOpts, QueryPage, Receipt, SignedTx, StoreError, TxHash,
-    U256,
+    TxInfo, U256,
 };
 use arkiv_git_sync::identity::{self, RepoMeta};
 use arkiv_git_sync::{Config, Keys, Listing, Push, Repo, Update, View, Want};
@@ -85,6 +85,12 @@ impl Arkiv for Net {
     }
     async fn tx_count(&self, a: Address) -> Result<u64, StoreError> {
         self.mem.tx_count(a).await
+    }
+    async fn tx_count_mined(&self, a: Address) -> Result<u64, StoreError> {
+        self.mem.tx_count_mined(a).await
+    }
+    async fn transaction(&self, h: TxHash) -> Result<Option<TxInfo>, StoreError> {
+        self.mem.transaction(h).await
     }
     async fn estimate(&self, from: Address, ops: &[Operation]) -> Result<u64, StoreError> {
         self.mem.estimate(from, ops).await

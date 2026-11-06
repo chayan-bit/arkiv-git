@@ -2,6 +2,7 @@
 
 pub mod backend;
 pub mod cmd;
+pub mod escrow;
 pub mod helper;
 pub mod member;
 pub mod op;
@@ -21,6 +22,9 @@ pub enum CliError {
     Sync(#[from] SyncError),
     #[error(transparent)]
     Timelock(#[from] arkiv_git_timelock::TimelockError),
+    /// `escrow audit` found violations.
+    #[error("{0}")]
+    Flagged(String),
 }
 
 impl From<StoreError> for CliError {
@@ -32,7 +36,7 @@ impl From<StoreError> for CliError {
 impl CliError {
     pub fn code(&self) -> Option<ErrorCode> {
         match self {
-            Self::Usage(_) | Self::Timelock(_) => None,
+            Self::Usage(_) | Self::Timelock(_) | Self::Flagged(_) => None,
             Self::Sync(e) => Some(e.code()),
         }
     }
@@ -46,6 +50,9 @@ impl CliError {
                 arkiv_git_timelock::TimelockError::Fetch(_) => 3,
                 _ => 1,
             };
+        }
+        if let Self::Flagged(_) = self {
+            return 1;
         }
         match self.code() {
             None => 2,
@@ -62,6 +69,7 @@ impl CliError {
             return format!("{}: {msg}", e.code());
         }
         match self.code() {
+            None if matches!(self, Self::Flagged(_)) => format!("flagged: {msg}"),
             None => format!("usage: {msg}"),
             Some(c) => format!("{}: {msg}", c.as_str()),
         }
@@ -92,6 +100,11 @@ mod tests {
         assert_eq!(c(ErrorCode::InsufficientFunds).exit_code(), 4);
         assert_eq!(c(ErrorCode::NotLive).line(), "E_NOT_LIVE: x");
         assert_eq!(CliError::Usage("a\nb".into()).line(), "usage: a b");
+        let flagged = CliError::Flagged("2 flags".into());
+        assert_eq!(
+            (flagged.exit_code(), flagged.line().as_str()),
+            (1, "flagged: 2 flags")
+        );
         assert_eq!(
             CliError::from(StoreError::Rpc("down".into())).exit_code(),
             3

@@ -1094,6 +1094,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-signer-local",
  "arkiv-git-core",
+ "arkiv-git-escrow",
  "arkiv-git-private",
  "arkiv-git-program",
  "arkiv-git-store",
@@ -1136,6 +1137,21 @@ dependencies = [
  "sha3 0.10.9",
  "thiserror 2.0.21",
  "zeroize",
+]
+
+[[package]]
+name = "arkiv-git-escrow"
+version = "0.1.0"
+dependencies = [
+ "alloy-signer-local",
+ "arkiv-git-core",
+ "arkiv-git-crypto",
+ "arkiv-git-store",
+ "arkiv-git-sync",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]

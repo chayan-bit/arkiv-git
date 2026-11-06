@@ -274,6 +274,47 @@ async fn reads_parse_the_wire_types() {
 }
 
 #[tokio::test]
+async fn transaction_by_hash_and_mined_nonce_parse() {
+    // Shape of a plain Rabdi transfer from eth_getTransactionByHash.
+    let t = json!({
+        "hash": B256::repeat_byte(1), "from": Address::repeat_byte(2),
+        "to": Address::repeat_byte(3), "value": "0x853a0d2313c0000",
+        "blockNumber": "0x2a", "type": "0x2", "nonce": "0x0"
+    });
+    let (rpc, seen) = client(move |b| match b["method"].as_str().unwrap_or("") {
+        "eth_getTransactionCount" => ok(json!("0x4")),
+        "eth_getTransactionByHash" if b["params"][0] == json!(B256::repeat_byte(1)) => {
+            ok(t.clone())
+        }
+        _ => ok(json!(null)),
+    })
+    .await;
+    let got = rpc
+        .transaction(TxHash::repeat_byte(1))
+        .await
+        .expect("t")
+        .expect("some");
+    assert_eq!(
+        got,
+        TxInfo {
+            hash: TxHash::repeat_byte(1),
+            from: Address::repeat_byte(2),
+            to: Some(Address::repeat_byte(3)),
+            value: U256::from(0x853a0d2313c0000u64),
+            block_number: Some(42),
+        }
+    );
+    assert_eq!(rpc.transaction(TxHash::repeat_byte(2)).await, Ok(None));
+    assert_eq!(rpc.tx_count_mined(Address::ZERO).await, Ok(4));
+    let log = seen.lock().expect("log");
+    let count = log
+        .iter()
+        .find(|(_, b)| b["method"] == "eth_getTransactionCount")
+        .expect("sent");
+    assert_eq!(count.1["params"][1], "latest");
+}
+
+#[tokio::test]
 async fn node_errors_map_to_store_errors() {
     let not_owner = IEntityRegistry::NotOwner {
         entityKey: B256::ZERO,

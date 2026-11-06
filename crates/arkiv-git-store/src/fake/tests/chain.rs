@@ -299,3 +299,40 @@ async fn faults_withhold_lie_and_page_caps() {
         .remove(0);
     assert_eq!(row.attr_u64("ag.i"), Some(0));
 }
+
+#[tokio::test]
+async fn transactions_report_sender_recipient_value_and_mined_nonce() {
+    let (fake, key) = setup();
+    let to = Address::repeat_byte(9);
+    let pay = TxParams {
+        nonce: 0,
+        to,
+        value: U256::from(42),
+        input: Bytes::new(),
+        gas_limit: 21_000,
+        max_fee_per_gas: 2 * MIN_BASE_FEE,
+        max_priority_fee_per_gas: 0,
+    };
+    let h = fake
+        .send(SignedTx::sign(&key, CHAIN, pay).expect("sign"))
+        .await
+        .expect("send");
+    let pending = fake.transaction(h).await.expect("t").expect("pending");
+    assert_eq!((pending.block_number, pending.to), (None, Some(to)));
+    assert_eq!(fake.tx_count(key.address()).await.expect("n"), 1);
+    assert_eq!(fake.tx_count_mined(key.address()).await.expect("n"), 0);
+    let n = fake.mine();
+    let mined = fake.transaction(h).await.expect("t").expect("mined");
+    assert_eq!(
+        mined,
+        TxInfo {
+            hash: h,
+            from: key.address(),
+            to: Some(to),
+            value: U256::from(42),
+            block_number: Some(n),
+        }
+    );
+    assert_eq!(fake.tx_count_mined(key.address()).await.expect("n"), 1);
+    assert_eq!(fake.transaction(TxHash::ZERO).await.expect("t"), None);
+}
