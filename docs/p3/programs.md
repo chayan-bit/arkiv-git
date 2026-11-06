@@ -132,9 +132,13 @@ An obligation may carry `due_order`, the `order` of the event that made it due; 
 
 ### Private repos
 
-Enforcement is not wired for private repos yet.
-`arkiv-git op post` and `program pin` write ops through the plain backend, not through the private repo's `Sealed` adapter, so a private repo's ops are stored unencrypted and a sealed reader's blinded queries do not see them.
-Pinning a program on a private repo is therefore expected to fail closed with `E_PROGRAM_MISSING` on fetch; this path has no test.
+A private repo enforces its program like a public one, for its members.
+`op post`, `op list`, `program pin`, `program status` and the escrow's obligation reads detect a private repo the way the remote helper does (`arkiv_git_private::ring_for`) and then run over the same `Sealed` adapter (the CLI's `for_repo!` macro).
+Ops, the program source op and the identity revision that sets the pin are therefore sealed under the current epoch key, with `ag.rid` blinded, exactly like pushed entities.
+Members open them, fold them, and `program::enforce` in fetch sees them, so the helper refuses a rejected push with `E_PROGRAM_REJECTED` and a member clone gets the program's heads.
+Non-members cannot read the program, its state or the ops; `program status` fails for them with `E_NOT_MEMBER`.
+The op type (`ag.type`) and object id (`ag.cob`) stay plaintext attributes, as for any sealed entity that carries them.
+`crates/arkiv-git-cli/tests/private_programs.rs` covers enforcement, a member clone and the absence of the plaintext rid on every op entity.
 
 ### Replay protection
 

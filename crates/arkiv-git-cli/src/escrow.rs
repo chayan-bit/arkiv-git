@@ -154,6 +154,19 @@ fn obligations(p: &Path) -> Result<FixedObligations> {
     Ok(FixedObligations(v))
 }
 
+impl EscrowCmd {
+    /// The repo a chain command acts on (`init` and `show` have none).
+    pub fn repo(&self) -> Option<&str> {
+        match self {
+            Self::Init | Self::Show => None,
+            Self::Appoint { repo, .. } => Some(repo),
+            Self::Deposit(d) => Some(&d.repo),
+            Self::Run(r) => Some(&r.repo),
+            Self::Audit(x) => Some(&x.repo),
+        }
+    }
+}
+
 /// Commands that need no chain.
 pub fn local(cmd: &EscrowCmd, home: &Path) -> Option<Result<()>> {
     let keys = match cmd {

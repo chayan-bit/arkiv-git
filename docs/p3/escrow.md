@@ -78,6 +78,16 @@ By default the CLI reads the repo's pinned program through `ProgramObligations` 
 `since_block` comes from the program: an obligation that carries `due_order` (the `order` of the event that made it due, for example the accepted push in `bounty.rhai`) gets the block of that event.
 Funds are allocated to unsettled pay obligations in program order, per purpose.
 
+### Private repos
+
+A private repo's program folds sealed ops, so only members can compute its obligations.
+Every `arkiv-git escrow` command that names a repo (`appoint`, `deposit`, `run`, `audit`) detects a private repo the way the remote helper does and then runs over the repo's `Sealed` view.
+The escrow's own ops are then sealed too, and the ledger and the obligations are read through the same view.
+An escrow agent for a private repo must therefore run on a machine whose identity (`arkiv-git keys show`) is a member with at least the read role; a non-member gets `E_NOT_MEMBER`.
+An auditor of a private repo's escrow must be a member for the same reason, so the audit is public only among members.
+Chain transfers (deposits, payouts, refunds) are plain transactions and stay visible to everyone.
+The agent reads its keyring once at start, so after a member removal rotates the key a long-running `escrow run` must be restarted to see newer ops.
+
 ## How programs use it
 
 - Patch bounties: a maintainer deposits with purpose `bounty:<issue id>`, and `bounty.rhai` emits a pay obligation keyed by the issue to the merged patch's author once the patch is accepted.

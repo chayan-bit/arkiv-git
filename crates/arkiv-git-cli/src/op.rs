@@ -52,6 +52,15 @@ pub struct ListArgs {
     pub json: bool,
 }
 
+impl OpCmd {
+    pub fn rid(&self) -> Result<arkiv_git_core::Rid> {
+        rid_of(match self {
+            Self::Post(p) => &p.repo,
+            Self::List(l) => &l.repo,
+        })
+    }
+}
+
 fn now_ms() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

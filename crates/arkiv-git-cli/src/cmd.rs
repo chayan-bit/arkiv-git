@@ -449,9 +449,12 @@ pub fn run(cli: &Cli) -> Result<()> {
             Cmd::Keys(_) | Cmd::Timelock(_) | Cmd::Zk(_) | Cmd::Program(ProgramCmd::Check(_)) => {
                 Ok(())
             }
-            Cmd::Program(ProgramCmd::Pin(p)) => pin_cmd(&a, &cfg, p).await,
+            Cmd::Program(ProgramCmd::Pin(p)) => {
+                for_repo!(&a, &cfg, &rid_of(&p.repo)?, |b| pin_cmd(b, &cfg, p).await)
+            }
             Cmd::Program(ProgramCmd::Status { repo }) => {
-                program::status(&a, &cfg, &rid_of(repo)?).await
+                let rid = rid_of(repo)?;
+                for_repo!(&a, &cfg, &rid, |b| program::status(b, &cfg, &rid).await)
             }
             Cmd::Init(i) => crate::member::init_cmd(&a, &cfg, i).await,
             Cmd::Member(m) => crate::member::member_cmd(&a, &cfg, m).await,
@@ -467,8 +470,14 @@ pub fn run(cli: &Cli) -> Result<()> {
                 Ok(())
             }
             Cmd::Fund(f) => fund_cmd(&a, &cfg, f).await,
-            Cmd::Op(o) => crate::op::run(&a, &cfg, o).await,
-            Cmd::Escrow(e) => crate::escrow::run(&a, &cfg, e).await,
+            Cmd::Op(o) => for_repo!(&a, &cfg, &o.rid()?, |b| crate::op::run(b, &cfg, o).await),
+            // A private repo's escrow ops and obligations are sealed like its other ops.
+            Cmd::Escrow(e) => match e.repo() {
+                Some(r) => for_repo!(&a, &cfg, &rid_of(r)?, |b| {
+                    crate::escrow::run(b, &cfg, e).await
+                }),
+                None => crate::escrow::run(&a, &cfg, e).await,
+            },
         }
     })?
 }
