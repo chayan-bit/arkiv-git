@@ -211,10 +211,11 @@ All ids and oids are hex.
 
 ## Templates
 
-The `programs/` directory holds five demo programs, each tested from disk in the program crate.
+The `programs/` directory holds six demo programs, each tested from disk in the program crate.
 
 - `branch-protection.rhai`: `refs/heads/main` moves only to a patch head that at least `repo.quorum` delegates approved at that exact head; a revise clears the approvals.
 - `ci-attested.rhai`: `main` moves only to a commit that k of the n attesters listed at the top of the script reported as passing CI.
+- `ci-gated.rhai`: `main` moves only to a patch head with `repo.quorum` delegate approvals and k passing CI attestations from the listed runners, both at that exact head; arkiv-git's own repo runs it (docs/p3/arkiv-ci.md).
 - `bounty.rhai`: an issue bounty plus pledges becomes a `pay` obligation to the patch author once the merged patch head is accepted on `main`, and a payment receipt op clears it; the receipt's chain check happens outside the program.
 - `sealed-patch.rhai`: a commit op pins `sha256(key)`, a later reveal counts only if the key hashes to it, and unrevealed commitments are `release_key` obligations.
   An issue may require, allow or ignore a zero-knowledge proof for commits that name it (see "Proofs").
