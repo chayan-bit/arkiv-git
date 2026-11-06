@@ -1,0 +1,67 @@
+name: release
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  # Add another binary (for example arkiv-git-mcp) by appending it here.
+  BINS: "git-remote-arkiv arkiv-git arkiv-git-mcp"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-unknown-linux-gnu
+            # Oldest runner keeps the glibc requirement low.
+            os: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the pinned toolchain
+        run: rustup target add ${{ matrix.target }} && rustc --version
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+      - name: Build
+        run: |
+          args=""
+          for b in $BINS; do args="$args --bin $b"; done
+          cargo build --locked --release --target ${{ matrix.target }} -p arkiv-git-cli -p arkiv-git-mcp $args
+      - name: Package
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = tag ]; then v="${GITHUB_REF_NAME}"; else v="dev-${GITHUB_SHA::7}"; fi
+          name="arkiv-git-${v}-${{ matrix.target }}"
+          for b in $BINS; do cp "target/${{ matrix.target }}/release/$b" .; done
+          tar czf "$name.tar.gz" $BINS LICENSE-APACHE LICENSE-MIT
+          if command -v sha256sum >/dev/null; then sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"; else shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256"; fi
+          cat "$name.tar.gz.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arkiv-git-${{ matrix.target }}
+          path: arkiv-git-*.tar.gz*
+          if-no-files-found: error
+
+  publish:
+    # Only tag pushes create a release; workflow_dispatch stops at the artifacts.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd dist
+          cat *.sha256 > SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes *.tar.gz SHA256SUMS
