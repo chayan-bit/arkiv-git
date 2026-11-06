@@ -6,6 +6,7 @@ members = [
   "crates/arkiv-git-store",
   "crates/arkiv-git-sync",
   "crates/arkiv-git-cli",
+  "crates/arkiv-git-program",
 ]
 
 [workspace.package]
