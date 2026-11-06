@@ -1,0 +1,385 @@
+{
+  "address": "0x201b7FB60f8f4B221afCEcEcAeeB6d09Af42f15A",
+  "mode": "readonly",
+  "rows": [
+    {
+      "probe": "account",
+      "key": "balance_tGLM",
+      "value": 0,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "chain",
+      "key": "chainId",
+      "value": 7794095,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "chain",
+      "key": "clientVersion",
+      "value": "reth/v2.7.0-a91d851/x86_64-unknown-linux-gnu",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "chain",
+      "key": "head",
+      "value": 290467,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "chain",
+      "key": "gasPrice_wei",
+      "value": "1000000000",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "chain",
+      "key": "baseFeePerGas_wei",
+      "value": "1000000000",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "chain",
+      "key": "arkiv_getBlockTiming",
+      "value": {
+        "current_block": 290467,
+        "current_block_time": 1793966700,
+        "duration": 2
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "chain",
+      "key": "blockTime_s",
+      "value": {
+        "mean": 2,
+        "min": 2,
+        "max": 2
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "chain",
+      "key": "gasLimit_last100",
+      "value": [
+        30000000
+      ],
+      "label": "MEASURED"
+    },
+    {
+      "probe": "chain",
+      "key": "maxGasUsed_last100",
+      "value": 19418993,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "chain",
+      "key": "maxTxsPerBlock_last100",
+      "value": 9,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "chain",
+      "key": "maxTxInputBytes_last100",
+      "value": 96132,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "limits",
+      "key": "maxSingleBytesAttr_throughRpc_bytes",
+      "value": 130336,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "limits",
+      "key": "maxRawTxEncoded_throughRpc_bytes",
+      "value": 131030,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "limits",
+      "key": "jsonRpcBodyAtBoundary_bytes",
+      "value": 262134,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "limits",
+      "key": "rejectedAbove",
+      "value": "HTTP 413 request body too large from the RPC edge (not the node)",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "gas",
+      "key": "create_1day_gas_by_KiB",
+      "value": {
+        "1": 142122,
+        "4": 228644,
+        "16": 701674,
+        "32": 1369743,
+        "64": 2707122,
+        "96": 4044349,
+        "126": 5297849
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "gas",
+      "key": "create_16KiB_gas_by_lifetime",
+      "value": {
+        "1d": 701432,
+        "30d": 1015634,
+        "90d": 1666757,
+        "max": 2669619
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "gas",
+      "key": "create_64KiB_gas_by_lifetime",
+      "value": {
+        "1d": 2707515,
+        "30d": 3890917,
+        "max": 10113997
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "gas",
+      "key": "derived_storage_units_per_64KiB_entity(capacity_rate=14)",
+      "value": {
+        "units": 67472,
+        "overheadVsPayload": 1936
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "gas",
+      "key": "create_126KiB_maxLifetime_estimate",
+      "value": 19729340,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "gas",
+      "key": "create_126KiB_maxLifetime_exceeds_txGasCap",
+      "value": true,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "gas",
+      "key": "txGasCap",
+      "value": 16777216,
+      "label": "SOURCE-VERIFIED"
+    },
+    {
+      "probe": "gas",
+      "key": "derived_gas_per_byte_calldata",
+      "value": 40.80411044034091,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "gas",
+      "key": "derived_storage_gas_per_byte_block",
+      "value": 0.00001532096228372344,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "gas",
+      "key": "derived_perMiB_30d",
+      "value": {
+        "calldata_gas": 42786210.90909091,
+        "storage_gas_per_30d": 20820490.578512397,
+        "tGLM_at_head_basefee": 0.0636067014876033,
+        "storageOnly_tGLM_per_MiB_month": 0.020820490578512395
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "limits",
+      "key": "attributes_32_indexed_u64",
+      "value": "ok",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "limits",
+      "key": "attributes_33_indexed_u64",
+      "value": "execution reverted",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "limits",
+      "key": "str_128B_indexed",
+      "value": "ok",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "limits",
+      "key": "str_129B_indexed",
+      "value": "execution reverted",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "limits",
+      "key": "name_32B",
+      "value": "ok",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "limits",
+      "key": "name_33B",
+      "value": "not encodable: the ABI carries names as bytes32",
+      "label": "SOURCE-VERIFIED"
+    },
+    {
+      "probe": "gas",
+      "key": "32xu64_indexed_vs_unindexed_gas",
+      "value": {
+        "indexed": 455501,
+        "unindexed": 217981
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "extend",
+      "key": "scanned_entities",
+      "value": 4000,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "extend",
+      "key": "permissionlessExtension_share",
+      "value": "104/4000",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "extend",
+      "key": "single_permissionless_by_non_owner_gas",
+      "value": {
+        "+10blocks": 43259,
+        "+43200blocks": 45344
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "extend",
+      "key": "batch_gas_by_entity_count",
+      "value": {
+        "1_entities": 43259,
+        "10_entities": 235917,
+        "50_entities": 1094987,
+        "100_entities": 2161257
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "extend",
+      "key": "non_owner_on_plain_entity",
+      "value": "execution reverted",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "extend",
+      "key": "shorten_expiry",
+      "value": "execution reverted",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "contracts",
+      "key": "contract_creation",
+      "value": "contract creation is disabled (no-EVM Arkiv executor)",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "contracts",
+      "key": "call_to_non_arkiv_address_with_data_gas",
+      "value": 21326,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "history",
+      "key": "block_1_still_served",
+      "value": {
+        "hash": "0xd735582700933fa1889cfc3c7c1f358e2e789e764159ecca2a7a826aef63fc9a",
+        "txs": 1
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "count_all_ms_median_of_5",
+      "value": 591,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "entities_on_chain",
+      "value": 119539,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "page100_key_only_ms_median_of_5",
+      "value": 575,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "owner_eq_count_ms_median_of_5",
+      "value": 354,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "expiresAt_range_ms_median_of_5",
+      "value": 426,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "or_two_ranges_ms_median_of_5",
+      "value": 353,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "order_by_expiresAt_desc_ms_median_of_5",
+      "value": 798,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "limit_101",
+      "value": "limit 101 exceeds the node maximum of 100",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "NOT_complement",
+      "value": "count: store: NotImplemented",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "not_equal_operator",
+      "value": "!= is not part of the query language — write NOT (attr = value) for the complement",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "atBlock_old",
+      "value": "block 1 is unavailable: state for this block is not retained",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "atBlock_head_minus_1",
+      "value": "block 290497 is unavailable: state for this block is not retained",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "offset_past_end",
+      "value": "accepted",
+      "label": "MEASURED"
+    }
+  ]
+}

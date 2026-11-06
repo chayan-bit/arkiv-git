@@ -1,0 +1,16 @@
+{
+  "name": "arkiv-measure",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "description": "P0 spike: measure Arkiv (Rabdi testnet) limits for arkiv-git",
+  "scripts": {
+    "readonly": "node src/measure.mjs readonly",
+    "funded": "node src/measure.mjs funded",
+    "all": "node src/measure.mjs all"
+  },
+  "dependencies": {
+    "@arkiv-network/sdk": "1.0.1",
+    "viem": "^2.21.0"
+  }
+}
