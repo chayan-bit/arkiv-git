@@ -44,7 +44,14 @@ fn merged(order: u64, object: u8) -> Event {
 }
 
 fn comment(order: u64, author: u8) -> Event {
-    op(order, author, 0x52, "xyz.arkiv.comment", "create", json!({"body": "hi"}))
+    op(
+        order,
+        author,
+        0x52,
+        "xyz.arkiv.comment",
+        "create",
+        json!({"body": "hi"}),
+    )
 }
 
 fn fold(events: Vec<Event>) -> Outcome {
@@ -83,7 +90,11 @@ fn out_of_scope_agent_op_is_ignored_and_recorded() {
     let r = rejected(&o);
     let reason = r[hex::encode([2u8; 32])].as_str().expect("recorded");
     assert!(reason.contains("scope comment not granted"), "{reason}");
-    assert!(fold(vec![comment(2, AGENT)]).state_json.contains("\"rejected\":{}"));
+    assert!(
+        fold(vec![comment(2, AGENT)])
+            .state_json
+            .contains("\"rejected\":{}")
+    );
 }
 
 #[test]
@@ -92,7 +103,12 @@ fn expired_grant_rejects_later_agent_ops() {
     events[0] = grant(1, &["patch"], 100, 2);
     let o = fold(events);
     let reason = rejected(&o)[hex::encode([3u8; 32])].clone();
-    assert!(reason.as_str().expect("recorded").contains("expired at order 2"));
+    assert!(
+        reason
+            .as_str()
+            .expect("recorded")
+            .contains("expired at order 2")
+    );
     assert!(o.obligations.is_empty());
 }
 
@@ -108,7 +124,11 @@ fn revoke_stops_later_ops_but_earlier_ones_still_count() {
     late.push(revoke(7, 0xd1));
     late.push(patch(8, AGENT, 0x53, 2));
     let o = fold(late);
-    assert_eq!(o.obligations.len(), 1, "the patch before the revoke is paid");
+    assert_eq!(
+        o.obligations.len(),
+        1,
+        "the patch before the revoke is paid"
+    );
     assert!(state(&o)["patches"].get(hx(0x53)).is_none());
 }
 
@@ -118,13 +138,24 @@ fn revoke_by_a_stranger_is_ignored() {
     events.insert(1, revoke(2, 0x77));
     let o = fold(events);
     assert_eq!(o.obligations.len(), 1);
-    assert!(rejected(&o).to_string().contains("granter or a human delegate"));
+    assert!(
+        rejected(&o)
+            .to_string()
+            .contains("granter or a human delegate")
+    );
 }
 
 #[test]
 fn grant_by_a_non_delegate_confers_nothing() {
     let payload = json!({"agent": hx(AGENT), "scopes": ["patch"], "max_bounty": 1, "until": 9});
-    let o = fold(vec![op(1, 0x77, GRANT, "xyz.arkiv.agent", "grant", payload)]);
+    let o = fold(vec![op(
+        1,
+        0x77,
+        GRANT,
+        "xyz.arkiv.agent",
+        "grant",
+        payload,
+    )]);
     assert_eq!(state(&o)["agents"], empty());
     assert!(rejected(&o).to_string().contains("only a human delegate"));
 }
@@ -135,7 +166,12 @@ fn bounty_above_the_cap_gets_no_pay_obligation() {
     assert_eq!(o.accepted.len(), 1);
     assert!(o.obligations.is_empty(), "{:?}", o.obligations);
     let key = format!("bounty:{}", hx(ISSUE));
-    assert!(rejected(&o)[key].as_str().expect("recorded").contains("cap 100"));
+    assert!(
+        rejected(&o)[key]
+            .as_str()
+            .expect("recorded")
+            .contains("cap 100")
+    );
 }
 
 #[test]
