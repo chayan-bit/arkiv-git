@@ -5,6 +5,8 @@ mod engine;
 mod fold;
 mod value;
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 pub use value::cbor_from_json;
@@ -103,6 +105,9 @@ pub struct Outcome {
     pub rejected: Vec<(RefUpdate, String)>,
     pub obligations: Vec<serde_json::Value>,
     pub logs: Vec<String>,
+    /// Last accepted head per ref after the fold (the seed plus every accepted push).
+    #[serde(skip)]
+    pub heads: BTreeMap<String, Vec<u8>>,
 }
 
 /// Which optional ABI functions the script defines.
@@ -155,6 +160,17 @@ impl Program {
         repo: RepoInfo,
         events: impl IntoIterator<Item = Event>,
     ) -> Result<Outcome, ProgramError> {
-        fold::run(self, &repo, events)
+        fold::run(self, &repo, BTreeMap::new(), events)
+    }
+
+    /// Like [`Program::fold`], but the accepted heads start at `seed` (ref name to oid)
+    /// instead of empty, e.g. the canonical heads when the program was pinned.
+    pub fn fold_from(
+        &self,
+        repo: RepoInfo,
+        seed: BTreeMap<String, Vec<u8>>,
+        events: impl IntoIterator<Item = Event>,
+    ) -> Result<Outcome, ProgramError> {
+        fold::run(self, &repo, seed, events)
     }
 }

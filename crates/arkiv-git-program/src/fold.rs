@@ -25,6 +25,7 @@ struct Folder<'a> {
 pub(crate) fn run(
     prog: &Program,
     repo: &RepoInfo,
+    seed: BTreeMap<String, Vec<u8>>,
     events: impl IntoIterator<Item = Event>,
 ) -> Result<Outcome, ProgramError> {
     let rt = Runtime::new();
@@ -35,7 +36,7 @@ pub(crate) fn run(
         prog,
         rt,
         state,
-        heads: BTreeMap::new(),
+        heads: seed,
         accepted: vec![],
         rejected: vec![],
     };
@@ -129,6 +130,7 @@ impl Folder<'_> {
             rejected: self.rejected,
             obligations,
             logs: self.rt.logs.take(),
+            heads: self.heads,
         })
     }
 }

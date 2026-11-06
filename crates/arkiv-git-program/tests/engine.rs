@@ -219,3 +219,19 @@ fn events_parse_from_json() {
     assert_eq!(state(&o)["n"], 4);
     assert_eq!(o.accepted.len(), 1);
 }
+
+#[test]
+fn fold_from_seeds_the_accepted_heads() {
+    let p = load("fn init(repo) { #{} }");
+    let seed = std::collections::BTreeMap::from([("refs/heads/main".to_owned(), oid(1))]);
+    let o = p
+        .fold_from(repo(), seed, [main(1, Some(1), 2), main(2, None, 3)])
+        .expect("fold");
+    assert_eq!(o.accepted.len(), 1, "a fast-forward of the seeded head");
+    assert_eq!(
+        o.rejected.len(),
+        1,
+        "a new-ref push onto a seeded ref is not ff"
+    );
+    assert_eq!(o.heads["refs/heads/main"], oid(2));
+}
