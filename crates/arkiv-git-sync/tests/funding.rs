@@ -139,3 +139,37 @@ async fn a_top_up_the_wallet_cannot_cover_stops_mid_push_and_the_retry_resumes()
         .expect("clone");
     assert_eq!(l.refs[0].1, rev(&work, "main"));
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_small_push_is_priced_for_its_real_chunk_sizes_not_full_chunks() {
+    let net = Net::new();
+    let alice = Peer::new(&net, 1);
+    let rid = init(&net, &alice, "small").await;
+    let tmp = tempfile::tempdir().expect("tmp");
+    let work = work_repo(tmp.path(), "w");
+    commit(&work, &[("README", b"v0\n".as_slice())], "feat: v0");
+    let repo = alice.repo(&rid);
+    let p = prepare(&net, &alice, &repo, &work, &[upd("refs/heads/main")])
+        .await
+        .expect("prepare");
+    let cost = p.cost().await.expect("cost");
+
+    let bulk = alice.keys.bulk_address(&rid);
+    let full = chunk_op(
+        &rid,
+        &[0; 32],
+        0,
+        &vec![0xa5; CHUNK_SIZE],
+        alice.cfg.data_lifetime,
+    );
+    let full_gas = net
+        .estimate(bulk, &[full.expect("op")])
+        .await
+        .expect("estimate");
+    // Refs, manifest and one chunk of a few hundred bytes: less than one full chunk.
+    assert!(
+        cost.bulk_gas < full_gas,
+        "a few-byte push is priced at {} bulk gas, a full chunk is {full_gas}",
+        cost.bulk_gas
+    );
+}
