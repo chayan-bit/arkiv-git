@@ -55,7 +55,8 @@ impl ProofCache {
     }
 }
 
-fn sha256_hex(data: &[u8]) -> String {
+/// Lowercase hex `sha256` of `data`: how blobs and receipts are addressed.
+pub fn sha256_hex(data: &[u8]) -> String {
     hex::encode(Sha256::digest(data))
 }
 

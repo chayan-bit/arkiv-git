@@ -1,9 +1,13 @@
 //! `arkiv-git op`: post and list collaborative-object ops (docs/p3/cob-ops.md).
 
+use std::collections::HashSet;
+use std::path::PathBuf;
+
 use arkiv_git_core::{CobOpBody, Hash32, VerifiedOp, ZERO};
 use arkiv_git_store::Arkiv;
 use arkiv_git_sync::cob::{self, json};
 use arkiv_git_sync::ids::{hex32, parse_id, to_text};
+use arkiv_git_sync::program::proofs::{BLOB_CHUNK, BLOB_TYPE, RISC0, sha256_hex};
 use arkiv_git_sync::{Config, Keys};
 use clap::{Args, Subcommand};
 use serde_json::{Value, json};
@@ -17,6 +21,23 @@ pub enum OpCmd {
     Post(PostArgs),
     /// Print the verified ops of a repo in Arkiv creation order.
     List(ListArgs),
+    /// Post a receipt as blob ops (skipping chunks already on the repo), then one op whose
+    /// payload carries the `proofs` entry that references them; prints that op's id.
+    AttachProof(AttachArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct AttachArgs {
+    /// The op to post, e.g. `--type xyz.arkiv.patch --action create`; `proofs` is appended
+    /// to its `--payload-json` object.
+    #[command(flatten)]
+    pub post: PostArgs,
+    /// RISC Zero receipt file (`arkiv-git zk prove` writes one).
+    #[arg(long)]
+    pub receipt: PathBuf,
+    /// The receipt's claimed public statement, as JSON.
+    #[arg(long)]
+    pub public: PathBuf,
 }
 
 #[derive(Debug, Args)]
@@ -57,6 +78,7 @@ impl OpCmd {
         rid_of(match self {
             Self::Post(p) => &p.repo,
             Self::List(l) => &l.repo,
+            Self::AttachProof(x) => &x.post.repo,
         })
     }
 }
@@ -67,9 +89,12 @@ fn now_ms() -> u64 {
         .map_or(0, |d| u64::try_from(d.as_millis()).unwrap_or(u64::MAX))
 }
 
-fn body(p: &PostArgs) -> Result<CobOpBody> {
-    let v: Value = serde_json::from_str(&p.payload_json)
-        .map_err(|e| CliError::Usage(format!("--payload-json: {e}")))?;
+fn payload(p: &PostArgs) -> Result<Value> {
+    serde_json::from_str(&p.payload_json)
+        .map_err(|e| CliError::Usage(format!("--payload-json: {e}")))
+}
+
+fn body(p: &PostArgs, v: &Value) -> Result<CobOpBody> {
     Ok(CobOpBody {
         rid: rid_of(&p.repo)?,
         object: p
@@ -85,7 +110,7 @@ fn body(p: &PostArgs) -> Result<CobOpBody> {
             .iter()
             .map(|s| parse_id(s))
             .collect::<Result<_, _>>()?,
-        payload: json::to_cbor(&v)?,
+        payload: json::to_cbor(v)?,
         ts_ms: now_ms(),
     })
 }
@@ -108,13 +133,78 @@ fn view(o: &VerifiedOp) -> Result<Value> {
 pub async fn run<A: Arkiv>(a: &A, cfg: &Config, cmd: &OpCmd) -> Result<()> {
     match cmd {
         OpCmd::Post(p) => {
-            let body = body(p)?;
+            let body = body(p, &payload(p)?)?;
             let id = cob::post(a, cfg, &Keys::require(&cfg.home)?, &body).await?;
             println!("{}", hex32(&id));
         }
         OpCmd::List(l) => list(a, l).await?,
+        OpCmd::AttachProof(x) => {
+            let id = attach_proof(a, cfg, x).await?;
+            println!("{}", hex32(&id));
+        }
     }
     Ok(())
+}
+
+fn read(path: &std::path::Path) -> Result<Vec<u8>> {
+    std::fs::read(path).map_err(|e| CliError::Usage(format!("{}: {e}", path.display())))
+}
+
+/// `payload` with `entry` appended to its `proofs` array.
+fn with_proof(mut payload: Value, entry: Value) -> Result<Value> {
+    let obj = payload
+        .as_object_mut()
+        .ok_or_else(|| CliError::Usage("--payload-json must be a JSON object".into()))?;
+    match obj.entry("proofs").or_insert_with(|| json!([])) {
+        Value::Array(list) => list.push(entry),
+        _ => return Err(CliError::Usage("payload `proofs` must be an array".into())),
+    }
+    Ok(payload)
+}
+
+/// Sha256 hex of every blob already posted to `rid`: blobs are content addressed.
+async fn posted_blobs<A: Arkiv>(a: &A, rid: &arkiv_git_core::Rid) -> Result<HashSet<String>> {
+    let ops = cob::list(a, rid, None, Some(BLOB_TYPE)).await?;
+    Ok(ops
+        .iter()
+        .filter_map(|o| {
+            let v = json::to_json(&o.body.payload).ok()?;
+            Some(sha256_hex(&hex::decode(v["data"].as_str()?).ok()?))
+        })
+        .collect())
+}
+
+/// Posts the receipt's missing chunks, then the op carrying the proof entry.
+pub async fn attach_proof<A: Arkiv>(a: &A, cfg: &Config, x: &AttachArgs) -> Result<Hash32> {
+    let receipt = read(&x.receipt)?;
+    let public: Value = serde_json::from_slice(&read(&x.public)?)
+        .map_err(|e| CliError::Usage(format!("{}: {e}", x.public.display())))?;
+    let payload = payload(&x.post)?;
+    let (keys, rid) = (Keys::require(&cfg.home)?, rid_of(&x.post.repo)?);
+    let posted = posted_blobs(a, &rid).await?;
+    let mut chunks = Vec::new();
+    for c in receipt.chunks(BLOB_CHUNK) {
+        let h = sha256_hex(c);
+        if !posted.contains(&h) {
+            let blob = CobOpBody {
+                rid,
+                object: ZERO,
+                type_name: BLOB_TYPE.into(),
+                action: "create".into(),
+                parents: vec![],
+                payload: json::to_cbor(&json!({ "data": hex::encode(c) }))?,
+                ts_ms: now_ms(),
+            };
+            let id = cob::post(a, cfg, &keys, &blob).await?;
+            eprintln!("blob {h} in op {}", hex32(&id));
+        }
+        chunks.push(h);
+    }
+    let entry = json!({
+        "kind": RISC0, "receipt": sha256_hex(&receipt), "chunks": chunks, "public": public,
+    });
+    let body = body(&x.post, &with_proof(payload, entry)?)?;
+    Ok(cob::post(a, cfg, &keys, &body).await?)
 }
 
 async fn list<A: Arkiv>(a: &A, l: &ListArgs) -> Result<()> {
@@ -136,4 +226,19 @@ async fn list<A: Arkiv>(a: &A, l: &ListArgs) -> Result<()> {
         );
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn with_proof_appends_to_the_payload_proofs() {
+        let p = with_proof(json!({"head": "h"}), json!(1)).expect("object");
+        assert_eq!(p, json!({"head": "h", "proofs": [1]}));
+        let p = with_proof(p, json!(2)).expect("object");
+        assert_eq!(p["proofs"], json!([1, 2]));
+        assert!(with_proof(json!([]), json!(1)).is_err());
+        assert!(with_proof(json!({"proofs": 3}), json!(1)).is_err());
+    }
 }

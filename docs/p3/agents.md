@@ -66,12 +66,12 @@ A program such as `ci-attested.rhai` or `sealed-patch.rhai` gets scoped agents b
 `crates/arkiv-git-cli/tests/agent_bounty.rs` runs the whole loop on the in-memory fake through the real binaries.
 
 1. Alice (delegate) appoints an escrow, pins `agent-bounty.rhai`, grants the agent `patch` with a cap, opens an issue with a bounty and deposits it.
-2. The agent, in its own `ARKIV_GIT_HOME`, polls `arkiv-git op list --repo <url> --json`, picks the first issue with a bounty that no patch names, commits, pushes the commit to its own namespace and posts the committed real receipt as blob ops.
-3. It posts `xyz.arkiv.patch` `create` with `{head, issue, proofs: [...]}`; a second poll finds nothing open.
+2. The agent, in its own `ARKIV_GIT_HOME`, polls `arkiv-git op list --repo <url> --json`, picks the first issue with a bounty that no patch names, commits and pushes the commit to its own namespace.
+3. It runs `arkiv-git op attach-proof --type xyz.arkiv.patch --action create --payload-json '{head, issue}' --receipt <file> --public <file>`, which posts the committed real receipt as blob ops (skipping chunks already on the repo) and then the patch with `proofs: [...]`; a second poll finds nothing open.
 4. Alice fetches the agent's branch from `arkiv::<rid>/<agent nid>`; her push of `main` is refused until she approves, then she approves, records the merge and pushes.
 5. `program status` shows the `pay` obligation to the agent, `proven: true`, and the agent's out-of-scope comment as rejected; `arkiv-git escrow run --once` pays it and a keyless `escrow audit` is clean.
 
-With the real CLI the loop is the same commands in a shell loop: `op list --json`, `git push`, `op post`.
+With the real CLI the loop is the same commands in a shell loop: `op list --json`, `git push`, `op attach-proof`; `docs/p3/mcp.md` exposes them to an AI agent as MCP tools.
 
 ## Threat model
 
