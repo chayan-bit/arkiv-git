@@ -40,6 +40,24 @@ pub(crate) fn op_map(op: &ProgramOp) -> Result<Dynamic, String> {
     m.insert("payload".into(), cbor_to_dynamic(&op.payload)?);
     m.insert("order".into(), int(op.arkiv_order)?);
     m.insert("ts".into(), int(op.ts_ms)?);
+    let proofs = op
+        .proofs
+        .iter()
+        .map(proof_map)
+        .collect::<Result<Array, _>>()?;
+    m.insert("proofs".into(), proofs.into());
+    Ok(m.into())
+}
+
+fn proof_map(p: &crate::ProofCheck) -> Result<Dynamic, String> {
+    let mut m = Map::new();
+    m.insert("kind".into(), p.kind.clone().into());
+    m.insert("image_id".into(), p.image_id.clone().into());
+    m.insert("ok".into(), p.ok.into());
+    m.insert(
+        "public".into(),
+        cbor_to_dynamic(&cbor_from_json(&p.public)?)?,
+    );
     Ok(m.into())
 }
 

@@ -41,6 +41,7 @@ pub fn op(order: u64, author: u8, object: u8, ty: &str, action: &str, payload: V
         payload: cbor_from_json(&payload).expect("payload"),
         ts_ms: 1_700_000_000_000 + order,
         arkiv_order: order,
+        proofs: vec![],
     })
 }
 

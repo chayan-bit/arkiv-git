@@ -1375,6 +1375,7 @@ dependencies = [
  "arkiv-git-crypto",
  "arkiv-git-program",
  "arkiv-git-store",
+ "arkiv-git-zk",
  "bs58",
  "futures-util",
  "hex",
@@ -1407,6 +1408,7 @@ version = "0.1.0"
 dependencies = [
  "arkiv-git-zk-core",
  "bincode",
+ "hex",
  "risc0-zkvm",
  "serde_json",
  "thiserror 2.0.21",

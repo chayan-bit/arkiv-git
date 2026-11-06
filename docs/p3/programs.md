@@ -51,7 +51,8 @@ A program without `init` fails to load, and an error in `init` fails the fold.
 
 ### `fn on_op(state, op)` (optional)
 
-`op` is `#{ id, author, type, action, object, parents: [..], payload, order, ts }`.
+`op` is `#{ id, author, type, action, object, parents: [..], payload, order, ts, proofs: [..] }`.
+`proofs` holds the client's verification of the op's proof attachments, in payload order (see "Proofs" below); it is empty for an op without any.
 `payload` is the op's canonical CBOR converted to Rhai values: maps with string keys, integers, strings, booleans, arrays, byte strings as blobs, and null as `()`.
 It returns the new state.
 An error, including running out of operations or a payload that does not convert, skips the op, logs it and leaves the state unchanged.
@@ -77,6 +78,43 @@ An error logs and leaves the state unchanged.
 It runs once after the last event and returns an array of maps, for example `#{ kind: "pay", to, amount, reason }` or `#{ kind: "release_key", object, by }`.
 An error logs and yields no obligations.
 Obligations are claims the program computes; whether they were met on chain is checked outside the program.
+
+## Proofs
+
+Programs decide whether proofs are required; clients only verify them.
+
+### Attaching a proof
+
+An op payload may carry `proofs: [ { kind: "risc0", receipt, chunks: [..], public } ]`.
+`public` is the statement the receipt claims to prove, for a sealed patch the `arkiv_git_zk_core::Public` map `{ key_hash, ct_hash, base_hash, spec_hash, spec }` with hex hashes.
+A receipt (about 224 KB) does not fit the 64 KiB op payload cap, so its bytes travel in `xyz.arkiv.blob` ops and the proof entry references them by hash.
+A blob op has action `create` and payload `{ data: <hex> }`, at most 32,000 raw bytes per op (`proofs::BLOB_CHUNK`), so `op post --payload-json` can write it.
+`chunks` lists the sha256 hex of each chunk's raw bytes in order, and `receipt` is the sha256 hex of the whole receipt.
+A client concatenates the blob data whose hashes are listed and requires the result to hash to `receipt`.
+Blobs are content addressed, so anyone may post them and a junk blob cannot displace a real one.
+Inline receipt bytes are not supported, since every real receipt exceeds the cap.
+
+### What the program sees
+
+Before folding, `program::enforce` runs `program::proofs::attach`, which verifies every attachment with `arkiv_git_zk::journal`: the receipt must verify against the pinned guest image id and its journal must equal `public` exactly.
+Each op then carries `op.proofs = [ #{ kind, image_id, ok, public } ]`.
+`ok` is true only for kind `risc0` with all chunks present, a matching receipt hash, a valid receipt and an exact statement match.
+`image_id` is the hex image id the client verified against (`arkiv_git_zk::image_id_hex()`), empty for other kinds.
+`public` is the claimed statement as posted; trust it only when `ok` is true.
+`public` is a reserved word in Rhai, so scripts read it as `pr["public"]`.
+Receipt bytes never reach Rhai; the payload keeps only hashes and the statement.
+Verification is deterministic, so every client computes the same `ok` from the same ops.
+Results are cached by receipt hash in `arkiv-proofs.json` inside the repo's git cache, so a re-fold does not verify again.
+A missing chunk is not cached, because it may be posted later; the op then folds with `ok == false` until it is.
+
+### The policy pattern
+
+`sealed-patch.rhai` shows the pattern.
+An `xyz.arkiv.issue` create op sets `proof: "required" | "optional" | "none"` and the `spec_hash` it accepts; an issue without `proof` takes `default_proof()` from the top of the script.
+A sealed `commit` op that names the issue (`issue: <issue id>`) counts when proof is required only if some entry has `ok == true`, the pinned `image_id`, `public.spec_hash` equal to the issue's `spec_hash` and `public.key_hash` equal to the commitment.
+Matching the statement is essential: `ok` alone would accept a valid proof of a different statement.
+"optional" accepts the commit either way and records `proven: true | false`; "none" ignores proofs.
+`crates/arkiv-git-sync/tests/proofs.rs` drives this with the committed real receipt: a match is accepted, and a missing proof, a tampered receipt and a valid receipt for another spec are rejected.
 
 ## Fold semantics
 
@@ -159,7 +197,7 @@ Every client re-folds the whole history on each fetch; there is no cached state.
 `Program::hash(source)` gives the pin hash.
 `Program::fold(repo: RepoInfo, events)` takes `Event::Op(ProgramOp)` and `Event::Push(RefUpdate)` and returns an `Outcome`.
 `Program::fold_from(repo, seed, events)` starts the accepted heads at `seed` instead of empty; `Outcome::heads` holds the last accepted head per ref.
-`ProgramOp` mirrors the verified COB op: `id`, `author`, `rid`, `object`, `type_name`, `action`, `parents`, `payload` (canonical CBOR), `ts_ms`, `arkiv_order`.
+`ProgramOp` mirrors the verified COB op: `id`, `author`, `rid`, `object`, `type_name`, `action`, `parents`, `payload` (canonical CBOR), `ts_ms`, `arkiv_order`, plus `proofs` (`Vec<ProofCheck>`, filled by the client before the fold; optional in dry-run JSON, so `program check` can test a policy without receipts).
 
 ## Dry run
 
@@ -179,5 +217,6 @@ The `programs/` directory holds four demo programs, each tested from disk in the
 - `ci-attested.rhai`: `main` moves only to a commit that k of the n attesters listed at the top of the script reported as passing CI.
 - `bounty.rhai`: an issue bounty plus pledges becomes a `pay` obligation to the patch author once the merged patch head is accepted on `main`, and a payment receipt op clears it; the receipt's chain check happens outside the program.
 - `sealed-patch.rhai`: a commit op pins `sha256(key)`, a later reveal counts only if the key hashes to it, and unrevealed commitments are `release_key` obligations.
+  An issue may require, allow or ignore a zero-knowledge proof for commits that name it (see "Proofs").
 
 Rhai functions cannot read top-level constants without modules, so configuration such as the attester list is written as small functions at the top of the script.

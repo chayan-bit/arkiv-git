@@ -70,11 +70,14 @@ The verifier-only build links about 180 crates (`cargo tree -p arkiv-git-zk -e n
 
 ## 5. How repo programs use it
 
-A sealed patch travels as an `xyz.arkiv.sealed` op.
-The op carries the sealed blob `C`, the public statement (`H`, `sha256(C)`, `sha256(F)`, `sha256(S)`, `S`), a reference to the base file `F` at a commit, and the receipt.
-A client that reads the op checks `sha256(C)` against the blob and `sha256(F)` against the file at that commit, then runs `arkiv_git_zk::verify(receipt, public)`.
-The client feeds the op to the repo program with `proof_ok = true` only if every check passed, and with `proof_ok = false` otherwise.
-The program never verifies proofs itself; it decides policy, for example accepting a bounty claim only when `proof_ok` holds and `S` is the spec the bounty named.
+A sealed patch travels as an `xyz.arkiv.sealed` `commit` op whose `commitment` is `H` and whose payload carries a proof attachment (docs/p3/programs.md, "Proofs").
+The receipt bytes travel in `xyz.arkiv.blob` ops; the attachment names them by hash and carries the public statement (`H`, `sha256(C)`, `sha256(F)`, `sha256(S)`, `S`).
+Before every fold the client resolves the receipt, runs `arkiv_git_zk::journal` and compares the journal with the claimed statement exactly.
+The program sees the result as `op.proofs[i]` with `ok`, the verified `image_id` and the statement, never the receipt.
+The program never verifies proofs itself; it decides policy.
+`programs/sealed-patch.rhai` lets an issue require, allow or ignore proofs, and counts a required-proof commit only when `ok` holds, the image id is the pinned guest, `spec_hash` is the issue's and `key_hash` is the commitment.
+Results are cached by receipt hash, so re-folds do not verify again.
+Checking `sha256(C)` against a published blob and `sha256(F)` against the file at a commit is left to the program or a later client step; the receipt already binds both hashes.
 When the author later reveals `k`, clients check `sha256(k) = H`, decrypt `C` and apply `P`, and get the file the proof promised.
 
 ## 6. Running it

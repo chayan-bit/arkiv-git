@@ -20,6 +20,7 @@ use crate::state::{PendingPush, unhex};
 use crate::view::View;
 use crate::{Result, SyncError, cob};
 
+pub mod proofs;
 mod publish;
 
 pub use publish::{obligations, obligations_in, publish};
@@ -157,6 +158,7 @@ pub fn program_op(o: &VerifiedOp, order: u64) -> ProgramOp {
         payload: o.body.payload.clone(),
         ts_ms: o.body.ts_ms,
         arkiv_order: order,
+        proofs: vec![],
     }
 }
 
@@ -278,10 +280,21 @@ pub async fn enforce<A: Arkiv>(a: &A, view: &View, git: &Git) -> Result<Option<E
         .refs
         .into_iter()
         .collect();
-    let mut events = ops
+    let pops = ops
         .iter()
-        .map(|o| Ok(Event::Op(program_op(o, order(&rank, &o.arkiv_order.key)?))))
+        .map(|o| Ok(program_op(o, order(&rank, &o.arkiv_order.key)?)))
         .collect::<Result<Vec<_>>>()?;
+    // Proofs are verified once per receipt and cached next to the git cache.
+    let cache_path = git.dir().map(|d| d.join("arkiv-proofs.json"));
+    let mut cache = cache_path
+        .as_deref()
+        .map(proofs::ProofCache::load)
+        .unwrap_or_default();
+    let pops = proofs::attach(pops, &mut cache);
+    if let Some(p) = &cache_path {
+        cache.save(p)?;
+    }
+    let mut events: Vec<Event> = pops.into_iter().map(Event::Op).collect();
     events.extend(pushes.into_iter().map(Event::Push));
     events.sort_by_key(Event::order);
     let repo = RepoInfo {

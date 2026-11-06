@@ -28,8 +28,18 @@ pub enum ZkError {
     Mismatch,
 }
 
-/// Verifies `receipt_bytes` (bincode `Receipt`) proves the relation for exactly `expected`.
-pub fn verify(receipt_bytes: &[u8], expected: &Public) -> Result<(), ZkError> {
+/// [`IMAGE_ID`] as lowercase hex of its little-endian words (RISC Zero's digest form), the
+/// `image_id` repo programs see on a verified proof.
+pub fn image_id_hex() -> String {
+    IMAGE_ID
+        .iter()
+        .map(|w| hex::encode(w.to_le_bytes()))
+        .collect()
+}
+
+/// Verifies `receipt_bytes` (bincode `Receipt`) against the pinned image id and returns the
+/// public statement its journal commits. Deterministic: the same bytes give the same result.
+pub fn journal(receipt_bytes: &[u8]) -> Result<Public, ZkError> {
     let receipt: Receipt =
         bincode::deserialize(receipt_bytes).map_err(|e| ZkError::Decode(e.to_string()))?;
     if !matches!(receipt.inner, InnerReceipt::Succinct(_)) {
@@ -38,12 +48,16 @@ pub fn verify(receipt_bytes: &[u8], expected: &Public) -> Result<(), ZkError> {
     receipt
         .verify(IMAGE_ID)
         .map_err(|e| ZkError::Proof(e.to_string()))?;
-    let got: Public = receipt
+    receipt
         .journal
         .decode()
-        .map_err(|e| ZkError::Journal(e.to_string()))?;
-    if &got != expected {
-        return Err(ZkError::Mismatch);
+        .map_err(|e| ZkError::Journal(e.to_string()))
+}
+
+/// Verifies `receipt_bytes` (bincode `Receipt`) proves the relation for exactly `expected`.
+pub fn verify(receipt_bytes: &[u8], expected: &Public) -> Result<(), ZkError> {
+    match journal(receipt_bytes)? == *expected {
+        true => Ok(()),
+        false => Err(ZkError::Mismatch),
     }
-    Ok(())
 }

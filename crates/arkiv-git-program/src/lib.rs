@@ -69,6 +69,21 @@ pub struct ProgramOp {
     #[serde(default)]
     pub ts_ms: u64,
     pub arkiv_order: u64,
+    /// Client-side verification results of the op's proof attachments, in payload order;
+    /// scripts see them as `op.proofs` and never see receipt bytes.
+    #[serde(default)]
+    pub proofs: Vec<ProofCheck>,
+}
+
+/// One verified proof attachment (docs/p3/programs.md, "Proofs"). `ok` means the receipt
+/// verified against the pinned `image_id` and its journal equals `public` exactly.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProofCheck {
+    pub kind: String,
+    pub image_id: String,
+    pub ok: bool,
+    /// The attachment's claimed public statement (trust it only when `ok`).
+    pub public: serde_json::Value,
 }
 
 /// One ref move by one author; `old` is empty when the ref is new, `new` empty on delete.
