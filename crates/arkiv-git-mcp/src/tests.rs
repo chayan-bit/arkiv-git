@@ -143,6 +143,29 @@ async fn tools_dispatch_to_the_cli_on_the_fake_chain() {
         std::fs::read_to_string(clone.join("README")).expect("readme"),
         "v0\n"
     );
+    std::fs::write(clone.join("README"), "v1\n").expect("edit");
+    let pushed = ok(s
+        .git_push(Parameters(PushArgs {
+            repo: url.clone(),
+            dir: clone.clone(),
+            branch: "agent/fix".into(),
+            message: Some("fix: v1".into()),
+        }))
+        .await);
+    let head = s.runner.git(&clone, &args(&["rev-parse", "HEAD"])).await;
+    assert_eq!(
+        pushed["head"].as_str(),
+        Some(head.expect("rev-parse").trim())
+    );
+    let keys = s
+        .runner
+        .arkiv(&args(&["keys", "show"]))
+        .await
+        .expect("keys");
+    let nid = keys.split_whitespace().nth(1).expect("nid");
+    let peer = format!("{url}/{nid}");
+    let remote = s.runner.git(&clone, &args(&["ls-remote", &peer])).await;
+    assert!(remote.expect("ls-remote").contains("refs/heads/agent/fix"));
 
     let attach = |payload: Value| {
         Parameters(AttachArgs {
