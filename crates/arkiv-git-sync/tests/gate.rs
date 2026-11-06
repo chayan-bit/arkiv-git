@@ -79,6 +79,8 @@ async fn gate(files: u64) {
         vec![replay_anchor.clone(), replay_refs],
     )
     .await;
+    // Pushes leave control only its spend plus a reserve; fund the replay itself.
+    net.fund(alice.keys.control_address(&rid));
     send_ops(&net, &alice.keys.control(&rid), vec![replay_anchor]).await;
 
     let bob = Peer::new(&net, 2);

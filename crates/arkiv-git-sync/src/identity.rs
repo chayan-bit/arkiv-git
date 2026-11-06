@@ -26,7 +26,7 @@ fn nonce() -> [u8; 16] {
     arkiv_git_store::random_salt().to_be_bytes()
 }
 
-/// Funds the control address from the wallet if short, then sends `ops` in one tx.
+/// Sends `ops` in one tx from the control address, topped up from the wallet if short.
 async fn send_control<A: Arkiv>(
     a: &A,
     cfg: &Config,
@@ -34,11 +34,14 @@ async fn send_control<A: Arkiv>(
     rid: &Rid,
     ops: Vec<Operation>,
 ) -> Result<()> {
-    let control = keys.control_address(rid);
-    let gas = write::estimate(a, control, &ops).await?;
-    let need = write::price(gas, a.base_fee().await?);
-    write::ensure_funds(a, &keys.wallet(), control, need, &cfg.pipeline).await?;
-    write::send(a, &keys.control(rid), &cfg.pipeline, vec![ops]).await?;
+    write::send_funded(
+        a,
+        &keys.control(rid),
+        &keys.wallet(),
+        &cfg.pipeline,
+        vec![ops],
+    )
+    .await?;
     Ok(())
 }
 

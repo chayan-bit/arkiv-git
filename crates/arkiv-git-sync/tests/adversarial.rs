@@ -136,6 +136,8 @@ async fn replayed_old_anchor_and_refs_are_rejected() {
     let replay_anchor = entity_op::<AnchorBody>(&body_of(&a), 100_000).expect("op");
     let replay_refs = entity_op::<RefsBody>(&body_of(&a_refs), 100_000).expect("op");
     send_ops(&net, &foreign, vec![replay_anchor.clone(), replay_refs]).await;
+    // Pushes leave control only its spend plus a reserve; fund the replay itself.
+    net.fund(alice.keys.control_address(&rid));
     send_ops(&net, &alice.keys.control(&rid), vec![replay_anchor]).await;
 
     let bob = Peer::new(&net, 2);

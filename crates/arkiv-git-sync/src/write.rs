@@ -1,6 +1,6 @@
 //! Writing to Arkiv: signed bodies and chunks become create ops (flags 3, design 2.1), sent
 //! through the paced pipeline (design 4.6); per-repo addresses are topped up from the wallet
-//! when short (design 4.2 step 6).
+//! per window of in-flight txs (design 4.2 step 6).
 
 use alloy_signer_local::PrivateKeySigner;
 use arkiv_git_core::{
@@ -10,14 +10,11 @@ use arkiv_git_core::{
 use arkiv_git_crypto::SecretKey;
 use arkiv_git_store::pipeline::Landed;
 use arkiv_git_store::{
-    Address, Arkiv, AttributeValue, Operation, PipelineConfig, StoreError, TxPipeline, U256,
-    create_op, random_salt,
+    Address, Arkiv, AttributeValue, Operation, PipelineConfig, TxPipeline, U256, create_op,
+    random_salt,
 };
 
 use crate::{Result, SyncError};
-
-/// Gas of a plain transfer.
-const TRANSFER_GAS: u64 = 21_000;
 
 /// A signed entity ready to send: its envelope bytes and content hash.
 #[derive(Debug, Clone)]
@@ -94,44 +91,45 @@ pub fn price(gas: u64, base_fee: u128) -> U256 {
     U256::from(gas) * U256::from(11) / U256::from(10) * U256::from(2 * base_fee)
 }
 
-/// Ensures `target` holds `need` wei plus 25 percent headroom (estimates of the real txs
-/// drift a little from the probes), topping it up to twice `need` from `wallet`.
-pub async fn ensure_funds<A: Arkiv>(
+/// Sends every job from `signer` like [`send`], topping `signer` up from `wallet` before
+/// each window its balance cannot cover (design 4.2 step 6).
+pub async fn send_funded<A: Arkiv>(
     a: &A,
+    signer: &PrivateKeySigner,
     wallet: &PrivateKeySigner,
-    target: Address,
-    need: U256,
     cfg: &PipelineConfig,
-) -> Result<()> {
-    let have = a.balance(target).await?;
-    if have >= need + need / U256::from(4) {
-        return Ok(());
-    }
-    let missing = need * U256::from(2) - have.min(need);
-    let base_fee = a.base_fee().await?;
-    let wallet_need = missing + price(TRANSFER_GAS, base_fee);
-    let wallet_have = a.balance(wallet.address()).await?;
-    if wallet_have < wallet_need {
-        return Err(SyncError::coded(
-            ErrorCode::InsufficientFunds,
-            format!(
-                "address {target} needs {need} wei, has {have}; wallet {} has {wallet_have}, \
-                 needs {wallet_need} to top it up (run `arkiv-git fund`)",
-                wallet.address()
-            ),
-        ));
+    jobs: Vec<Vec<Operation>>,
+) -> Result<Vec<Landed>> {
+    if jobs.is_empty() {
+        return Ok(vec![]);
     }
     let chain_id = a.chain_id().await?;
-    let mut p = TxPipeline::new(a, wallet.clone(), chain_id, cfg.clone());
-    let r = p.transfer(target, missing).await?;
-    if !r.success {
-        return Err(StoreError::Reverted {
-            tx: Some(r.tx_hash),
-            reason: "top-up transfer failed".into(),
-        }
-        .into());
+    let mut p = TxPipeline::new(a, signer.clone(), chain_id, cfg.clone()).funded_by(wallet.clone());
+    Ok(p.run(jobs).await?)
+}
+
+/// The one up-front check of a push: `wallet` plus what `spenders` already hold must cover
+/// `need` (predicted spend plus one window's reserve), else `E_INSUFFICIENT_FUNDS`.
+pub async fn check_funds<A: Arkiv>(
+    a: &A,
+    wallet: Address,
+    spenders: &[Address],
+    need: U256,
+) -> Result<()> {
+    let mut have = a.balance(wallet).await?;
+    for s in spenders {
+        have += a.balance(*s).await?;
     }
-    Ok(())
+    if have >= need {
+        return Ok(());
+    }
+    Err(SyncError::coded(
+        ErrorCode::InsufficientFunds,
+        format!(
+            "this push needs {need} wei (predicted spend plus one window of in-flight max fees); \
+             wallet {wallet} and the repo addresses hold {have} (run `arkiv-git fund`)"
+        ),
+    ))
 }
 
 #[cfg(test)]

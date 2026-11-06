@@ -354,7 +354,10 @@ async fn fund_cmd<A: Arkiv>(a: &A, cfg: &Config, f: &FundArgs) -> Result<()> {
     let chunks = f.bytes.div_ceil(arkiv_git_core::CHUNK_SIZE as u64);
     // Setup covers peer + bind + id; three more control/bulk entities (anchor, refs, manifest).
     let gas = setup * 2 + per_chunk * chunks;
-    let need = arkiv_git_sync::write::price(gas, a.base_fee().await?);
+    // Predicted spend plus one window of in-flight max fees (design 4.2 step 6).
+    let base_fee = a.base_fee().await?;
+    let need = U256::from(gas) * U256::from(base_fee + cfg.pipeline.tip)
+        + cfg.pipeline.window_reserve(per_chunk.max(setup), base_fee);
     println!("wallet:  {wallet}");
     println!("balance: {} tGLM", fmt_glm(have));
     println!(
