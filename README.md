@@ -12,7 +12,8 @@ Submitted to:
 - Ethereum Foundation: "Best CROPS App" (see the `CROPS` section below).
 - ETHGlobal finalist judging.
 
-Demo video: <!-- FILL: demo video URL --> TODO-DEMO-VIDEO-URL (placeholder, replaced before submission).
+Demo video (2 minutes, recorded with VHS from [`demo/arkiv-git.tape`](demo/arkiv-git.tape)): https://github.com/chayan-bit/arkiv-git/raw/demo-assets/arkiv-git-demo.gif (MP4: https://github.com/chayan-bit/arkiv-git/raw/demo-assets/arkiv-git-demo.mp4).
+It shows push and clone over `arkiv::`, a pinned program refusing a direct push and accepting it after review, `zk verify` passing and then failing on a tampered input, `timelock open` failing with `E_TOO_EARLY`, an outsider getting `E_NOT_MEMBER` on a private repo, and a keyless clone of the live Rabdi repo below.
 
 Notes for judges, in `arkiv/`:
 
@@ -130,23 +131,32 @@ The default is 30 days for data and 182.5 days for the control plane.
 
 ## Wallets and a query you can run
 
-<!-- FILL: demo wallet addresses and rid after the final live demo push -->
+The live demo repo on Rabdi, created on 2026-11-07 with 1-day lifetimes (43200 blocks) so it stays readable through judging:
+
+- rid: `z5b15ZhFLNackCqiyAL5y4dMj4MFGfVrtgLmZ9PPDU1AH`, so `git clone arkiv::z5b15ZhFLNackCqiyAL5y4dMj4MFGfVrtgLmZ9PPDU1AH` works with no keys.
+- rid in hex (revision 0 hash): `4424958cfcfb43cac8e202206fb5640c30855c2b800151023839fcc3a5bde652`.
+- Flow: init, push `v0`, `program pin` of `programs/branch-protection.rhai`, a direct push of `v1` refused locally with `E_PROGRAM_REJECTED`, a patch op and an approve op at `c9cf57a`, then the same push accepted.
+- A fresh clone in a second home gets `c9cf57a feat: v1`, and `arkiv-git program status` shows the approved patch and `head: refs/heads/main c9cf57a9508c7f6b00e495a03490bc1c2109b0fd`.
+- Wallet (pays and tops up the repo addresses): `0xC086980750bc26B4e8F64B85aFe0c7c8bFDc2a7E`.
+- Control address (owner and creator of the `id`, `bind`, `anchor` and `cob` entities): `0xc051EAe280800fdF4bAd0A2665aCdB1B4963688F`.
+- Bulk address (owner and creator of the `chunk`, `manifest` and `refs` entities): `0x773d7756Fc906D21c4Ac55d7979c3db73C24D6e3`.
+- Explorer: https://rabdi.explorer.arkiv.network, for example https://rabdi.explorer.arkiv.network/address/0xc051EAe280800fdF4bAd0A2665aCdB1B4963688F.
 
 Anyone can read a repo's anchor chain straight from Arkiv, without arkiv-git.
 The anchor kind fixes each peer's refs head; this query lists the anchors of one repo in sequence order (shape from `docs/p1/design.md` section 3.6):
 
 ```text
-ag.kind = str('anchor') AND ag.rid = bytes32(0x<RID_HEX: 64 hex characters of the rid, FILL after the demo push>) ORDER BY ag.seq:u64 ASC
+ag.kind = str('anchor') AND ag.rid = bytes32(0x4424958cfcfb43cac8e202206fb5640c30855c2b800151023839fcc3a5bde652) ORDER BY ag.seq:u64 ASC
 ```
 
 ```sh
 curl -s -X POST https://rpc.rabdi.db-chain.testnet.arkiv.network -H 'content-type: application/json' --data-binary @- <<EOF
-{"jsonrpc":"2.0","id":1,"method":"arkiv_query","params":["ag.kind = str('anchor') AND ag.rid = bytes32(0x<RID_HEX>) ORDER BY ag.seq:u64 ASC",{"limit":10}]}
+{"jsonrpc":"2.0","id":1,"method":"arkiv_query","params":["ag.kind = str('anchor') AND ag.rid = bytes32(0x4424958cfcfb43cac8e202206fb5640c30855c2b800151023839fcc3a5bde652) ORDER BY ag.seq:u64 ASC",{"select":{"key":true,"owner":true,"attributes":{"ag.seq":true}},"limit":"0xa"}]}
 EOF
 ```
 
-The rid in hex is the revision hash that `arkiv-git id show arkiv::<rid>` prints for revision 0.
-Replace `<RID_HEX>` before running; with an all-zero rid the query is valid and returns no rows.
+Expected result: two rows, the anchors with `ag.seq` `0x0` (the `v0` push) and `0x1` (the approved `v1` push), both owned by the control address `0xc051eae280800fdf4bad0a2665acdb1b4963688f`.
+For another repo, the rid in hex is the revision hash that `arkiv-git id show arkiv::<rid>` prints for revision 0; with an all-zero rid the query is valid and returns no rows.
 Add `"select":{"count":true}` to the options to get only a count.
 Each row is a hint, not proof: a client checks the signature, the creator address and the chain before trusting it, which `git clone` does for you.
 
