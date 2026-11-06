@@ -1,0 +1,403 @@
+//! `arkiv-git` subcommands (design 3.5, 5, 6, 7.1). Output is plain text on stdout.
+
+use alloy_signer_local::PrivateKeySigner;
+use arkiv_git_core::{IdBody, Rid};
+use arkiv_git_store::{Arkiv, U256};
+use arkiv_git_sync::identity::{self, RepoMeta};
+use arkiv_git_sync::ids::{hex32, parse_id, parse_url, to_text, unhex32};
+use arkiv_git_sync::keepalive::{self, KeepOpts};
+use arkiv_git_sync::search::{SearchQuery, search};
+use arkiv_git_sync::state::State;
+use arkiv_git_sync::{Config, Keys, Repo};
+use clap::{Args, Parser, Subcommand};
+
+use crate::units::{blocks, fmt_glm, glm};
+use crate::{CliError, Result, backend};
+
+#[derive(Debug, Parser)]
+#[command(name = "arkiv-git", version, about = "Git repositories on Arkiv")]
+pub struct Cli {
+    #[command(subcommand)]
+    pub cmd: Cmd,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum Cmd {
+    /// Manage this machine's identity seed.
+    #[command(subcommand)]
+    Keys(KeysCmd),
+    /// Create a repo with this peer as its single delegate.
+    Init(InitArgs),
+    /// Repo identity: show, propose a revision, accept one.
+    #[command(subcommand)]
+    Id(IdCmd),
+    /// Extend everything a repo needs before it expires.
+    Keepalive(KeepArgs),
+    /// Find repos by annotation, verified against their identity heads.
+    Search(SearchArgs),
+    /// Per-peer heads, expiry outlook and equivocation notes.
+    Status { repo: String },
+    /// Print the wallet address, its balance and an estimate of what a push needs.
+    Fund(FundArgs),
+}
+
+#[derive(Debug, Subcommand)]
+pub enum KeysCmd {
+    Init,
+    Show,
+}
+
+#[derive(Debug, Args)]
+pub struct InitArgs {
+    #[arg(long)]
+    pub name: String,
+    #[arg(long, default_value = "")]
+    pub description: String,
+    #[arg(long, default_value = "main")]
+    pub default_branch: String,
+    #[arg(long)]
+    pub lang: Option<String>,
+    #[arg(long)]
+    pub license: Option<String>,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum IdCmd {
+    Show {
+        repo: String,
+    },
+    Propose(ProposeArgs),
+    /// Accept revision `rev` (its hex `h`, as `id show` / `id propose` print it).
+    Accept {
+        repo: String,
+        rev: String,
+    },
+}
+
+#[derive(Debug, Args)]
+pub struct ProposeArgs {
+    pub repo: String,
+    #[arg(long)]
+    pub name: Option<String>,
+    #[arg(long)]
+    pub description: Option<String>,
+    #[arg(long)]
+    pub default_branch: Option<String>,
+    #[arg(long = "add-delegate")]
+    pub add: Vec<String>,
+    #[arg(long = "remove-delegate")]
+    pub remove: Vec<String>,
+    #[arg(long)]
+    pub threshold: Option<u64>,
+    #[arg(long)]
+    pub lang: Option<String>,
+    #[arg(long)]
+    pub license: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct KeepArgs {
+    pub repo: String,
+    #[arg(long, default_value = "90d", value_parser = blocks)]
+    pub horizon: u64,
+    #[arg(long, default_value = "30d", value_parser = blocks)]
+    pub renew_below: u64,
+    /// Upper bound in tGLM.
+    #[arg(long, value_parser = glm)]
+    pub max_spend: Option<U256>,
+    #[arg(long)]
+    pub dry_run: bool,
+    /// File holding a hex EVM private key to pay with (default: this machine's wallet).
+    #[arg(long)]
+    pub evm_key: Option<std::path::PathBuf>,
+}
+
+#[derive(Debug, Args)]
+pub struct SearchArgs {
+    #[arg(long, conflicts_with = "prefix")]
+    pub name: Option<String>,
+    #[arg(long)]
+    pub prefix: Option<String>,
+    #[arg(long)]
+    pub lang: Option<String>,
+    #[arg(long)]
+    pub license: Vec<String>,
+    #[arg(long)]
+    pub peer: Option<String>,
+    #[arg(long)]
+    pub recent: Option<u64>,
+    #[arg(long, default_value_t = 20, value_parser = clap::value_parser!(u32).range(1..=100))]
+    pub limit: u32,
+}
+
+#[derive(Debug, Args)]
+pub struct FundArgs {
+    /// Size of the push to estimate for, in bytes.
+    #[arg(long, default_value_t = 0)]
+    pub bytes: u64,
+}
+
+fn rid_of(repo: &str) -> Result<Rid> {
+    let url = repo.strip_prefix("arkiv::").unwrap_or(repo);
+    Ok(parse_url(url)?.rid)
+}
+
+fn home() -> std::path::PathBuf {
+    Config::default_home()
+}
+
+fn keys_cmd(cmd: &KeysCmd) -> Result<()> {
+    let keys = match cmd {
+        KeysCmd::Init => Keys::init(&home())?,
+        KeysCmd::Show => Keys::require(&home())?,
+    };
+    println!("nid:    {}", to_text(&keys.nid()));
+    println!("wallet: {}", keys.wallet().address());
+    Ok(())
+}
+
+fn print_identity(rid: &Rid, chain: &arkiv_git_core::IdentityChain) {
+    let head = chain.head();
+    let b = &head.body;
+    println!("rid:            {}", to_text(rid));
+    println!("url:            arkiv::{}", to_text(rid));
+    println!("revision:       {} ({})", b.rev, hex32(&head.h));
+    println!("name:           {}", b.name);
+    println!("description:    {}", b.description);
+    println!("default branch: {}", b.default_branch);
+    println!("delegates:      {}", identity::delegates_text(&b.delegates));
+    println!("threshold:      {}", b.threshold);
+    println!("lang:           {}", b.lang.as_deref().unwrap_or("-"));
+    println!("license:        {}", b.license.as_deref().unwrap_or("-"));
+}
+
+fn edit(args: &ProposeArgs) -> Result<impl FnOnce(&IdBody) -> IdBody + use<>> {
+    let add = args
+        .add
+        .iter()
+        .map(|s| parse_id(s))
+        .collect::<Result<Vec<_>, _>>()?;
+    let remove = args
+        .remove
+        .iter()
+        .map(|s| parse_id(s))
+        .collect::<Result<Vec<_>, _>>()?;
+    let (name, description, branch) = (
+        args.name.clone(),
+        args.description.clone(),
+        args.default_branch.clone(),
+    );
+    let (threshold, lang, license) = (args.threshold, args.lang.clone(), args.license.clone());
+    Ok(move |h: &IdBody| {
+        let mut b = h.clone();
+        b.name = name.unwrap_or(b.name);
+        b.description = description.unwrap_or(b.description);
+        b.default_branch = branch.unwrap_or(b.default_branch);
+        b.delegates.extend(add);
+        b.delegates.retain(|d| !remove.contains(d));
+        b.threshold = threshold.unwrap_or(b.threshold);
+        b.lang = lang.or(b.lang);
+        b.license = license.or(b.license);
+        b
+    })
+}
+
+async fn id_cmd<A: Arkiv>(a: &A, cfg: &Config, cmd: &IdCmd) -> Result<()> {
+    let st = State::default();
+    match cmd {
+        IdCmd::Show { repo } => {
+            let rid = rid_of(repo)?;
+            print_identity(&rid, &identity::show(a, &rid, &st).await?);
+        }
+        IdCmd::Propose(args) => {
+            let (rid, keys) = (rid_of(&args.repo)?, Keys::require(&cfg.home)?);
+            let h = identity::propose(a, cfg, &keys, &rid, &st, edit(args)?).await?;
+            println!("proposed revision {}", hex32(&h));
+            print_identity(&rid, &identity::show(a, &rid, &st).await?);
+        }
+        IdCmd::Accept { repo, rev } => {
+            let (rid, keys) = (rid_of(repo)?, Keys::require(&cfg.home)?);
+            identity::accept(a, cfg, &keys, &rid, &unhex32(rev)?).await?;
+            print_identity(&rid, &identity::show(a, &rid, &st).await?);
+        }
+    }
+    Ok(())
+}
+
+fn evm_key(path: &std::path::Path) -> Result<PrivateKeySigner> {
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| CliError::Usage(format!("{}: {e}", path.display())))?;
+    text.trim()
+        .parse::<PrivateKeySigner>()
+        .map_err(|_| CliError::Usage(format!("{}: not a hex EVM private key", path.display())))
+}
+
+async fn keepalive_cmd<A: Arkiv>(a: &A, cfg: &Config, k: &KeepArgs) -> Result<()> {
+    let signer = match &k.evm_key {
+        Some(p) => evm_key(p)?,
+        None => Keys::require(&cfg.home)?.wallet(),
+    };
+    let repo = Repo::open(&cfg.home, &rid_of(&k.repo)?)?;
+    let opts = KeepOpts {
+        horizon: k.horizon,
+        renew_below: k.renew_below,
+        max_spend: k.max_spend,
+        dry_run: k.dry_run,
+    };
+    let r = keepalive::keepalive(a, &repo, cfg, &signer, &opts).await?;
+    let verb = if k.dry_run {
+        "would extend"
+    } else {
+        "extended"
+    };
+    println!(
+        "keep set: {} entities; {verb} {} in {} txs",
+        r.kept, r.extended, r.txs
+    );
+    println!("gas used: {}; spent: {} tGLM", r.gas, fmt_glm(r.spent));
+    if let Some(m) = r.min_expiry_blocks {
+        println!(
+            "minimum expiry: {} days",
+            m / arkiv_git_sync::repo::BLOCKS_PER_DAY
+        );
+    }
+    Ok(())
+}
+
+async fn search_cmd<A: Arkiv>(a: &A, s: &SearchArgs) -> Result<()> {
+    let q = SearchQuery {
+        name: s.name.clone(),
+        prefix: s.prefix.clone(),
+        lang: s.lang.clone(),
+        licenses: s.license.clone(),
+        peer: s.peer.as_deref().map(parse_id).transpose()?,
+        recent_days: s.recent,
+        limit: s.limit,
+    };
+    if q == (SearchQuery {
+        limit: s.limit,
+        ..SearchQuery::default()
+    }) {
+        return Err(CliError::Usage(
+            "give at least one of --name, --prefix, --lang, --license, --peer, --recent".into(),
+        ));
+    }
+    for h in search(a, &q).await? {
+        let b = &h.head;
+        let (lang, lic) = (
+            b.lang.as_deref().unwrap_or("-"),
+            b.license.as_deref().unwrap_or("-"),
+        );
+        println!(
+            "arkiv::{}  {}  {lang}  {lic}  {}",
+            to_text(&h.rid),
+            b.name,
+            b.description
+        );
+    }
+    Ok(())
+}
+
+async fn status_cmd<A: Arkiv>(a: &A, cfg: &Config, repo: &str) -> Result<()> {
+    let repo = Repo::open(&cfg.home, &rid_of(repo)?)?;
+    let (view, lines) = keepalive::status(a, &repo, cfg).await?;
+    println!(
+        "repo {} ({})",
+        view.identity.head().body.name,
+        to_text(&view.rid)
+    );
+    for l in lines {
+        let role = if l.delegate { "delegate" } else { "peer" };
+        let head = l
+            .head
+            .map_or("no head".into(), |(s, b)| format!("seq {s} at block {b}"));
+        let exp = l
+            .min_expiry_days
+            .map_or("-".into(), |d| format!("{d} days"));
+        println!(
+            "{} {role}: {head}; min expiry {exp}; {} expiring within 14 days",
+            to_text(&l.nid),
+            l.expiring_14d
+        );
+    }
+    for e in &view.equivocations {
+        println!(
+            "E_EQUIVOCATION peer {} seq {}: entities {}, {}",
+            to_text(&e.nid),
+            e.seq,
+            hex32(&e.keys[0]),
+            hex32(&e.keys[1])
+        );
+    }
+    Ok(())
+}
+
+async fn fund_cmd<A: Arkiv>(a: &A, cfg: &Config, f: &FundArgs) -> Result<()> {
+    let keys = Keys::require(&cfg.home)?;
+    let wallet = keys.wallet().address();
+    let have = a.balance(wallet).await?;
+    let probe = [0u8; 32];
+    let setup = arkiv_git_sync::write::estimate(
+        a,
+        keys.control_address(&probe),
+        &arkiv_git_sync::push_send::first_write_ops(&keys, &probe, cfg)?,
+    )
+    .await?;
+    let chunk = arkiv_git_sync::write::chunk_op(
+        &probe,
+        &probe,
+        0,
+        &vec![0xa5; arkiv_git_core::CHUNK_SIZE],
+        cfg.data_lifetime,
+    )?;
+    let per_chunk = arkiv_git_sync::write::estimate(a, keys.bulk_address(&probe), &[chunk]).await?;
+    let chunks = f.bytes.div_ceil(arkiv_git_core::CHUNK_SIZE as u64);
+    // Setup covers peer + bind + id; three more control/bulk entities (anchor, refs, manifest).
+    let gas = setup * 2 + per_chunk * chunks;
+    let need = arkiv_git_sync::write::price(gas, a.base_fee().await?);
+    println!("wallet:  {wallet}");
+    println!("balance: {} tGLM", fmt_glm(have));
+    println!(
+        "estimated need for init plus a {}-byte push: {} tGLM",
+        f.bytes,
+        fmt_glm(need)
+    );
+    println!(
+        "send testnet funds to the wallet address yourself; arkiv-git makes no transfers here"
+    );
+    Ok(())
+}
+
+async fn init_cmd<A: Arkiv>(a: &A, cfg: &Config, i: &InitArgs) -> Result<()> {
+    let keys = Keys::require(&cfg.home)?;
+    let meta = RepoMeta {
+        name: i.name.clone(),
+        description: i.description.clone(),
+        default_branch: i.default_branch.clone(),
+        lang: i.lang.clone(),
+        license: i.license.clone(),
+    };
+    let rid = identity::init(a, cfg, &keys, &meta).await?;
+    println!("rid: {}", to_text(&rid));
+    println!("url: arkiv::{}", to_text(&rid));
+    Ok(())
+}
+
+/// Runs one parsed command.
+pub fn run(cli: &Cli) -> Result<()> {
+    if let Cmd::Keys(k) = &cli.cmd {
+        return keys_cmd(k);
+    }
+    crate::block_on(async {
+        let (a, cfg) = backend::connect().await?;
+        match &cli.cmd {
+            Cmd::Keys(_) => Ok(()),
+            Cmd::Init(i) => init_cmd(&a, &cfg, i).await,
+            Cmd::Id(c) => id_cmd(&a, &cfg, c).await,
+            Cmd::Keepalive(k) => keepalive_cmd(&a, &cfg, k).await,
+            Cmd::Search(s) => search_cmd(&a, s).await,
+            Cmd::Status { repo } => status_cmd(&a, &cfg, repo).await,
+            Cmd::Fund(f) => fund_cmd(&a, &cfg, f).await,
+        }
+    })?
+}
