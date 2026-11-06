@@ -16,6 +16,7 @@ fake = ["arkiv-git-store/fake"]
 [dependencies]
 arkiv-git-crypto = { path = "../arkiv-git-crypto" }
 arkiv-git-core = { path = "../arkiv-git-core" }
+arkiv-git-program = { path = "../arkiv-git-program" }
 arkiv-git-store = { path = "../arkiv-git-store" }
 alloy-signer-local = "2.5"
 bs58 = "0.5"

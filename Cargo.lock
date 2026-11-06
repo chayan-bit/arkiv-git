@@ -1006,6 +1006,7 @@ dependencies = [
  "alloy-signer-local",
  "arkiv-git-core",
  "arkiv-git-crypto",
+ "arkiv-git-program",
  "arkiv-git-store",
  "bs58",
  "futures-util",

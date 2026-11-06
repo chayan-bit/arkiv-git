@@ -15,6 +15,7 @@ pub mod keepalive;
 pub mod keys;
 pub mod observe;
 pub mod packs;
+pub mod program;
 pub mod push;
 pub mod push_send;
 pub mod repo;

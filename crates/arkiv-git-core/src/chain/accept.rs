@@ -108,6 +108,16 @@ fn find_bulk<B: Body + HasRid>(
     })
 }
 
+/// The refs body with hash `h` signed by `peer` (bulk creator rule) among `observed`.
+pub fn find_refs(
+    rid: &Rid,
+    peer: &PeerInfo,
+    observed: &[Observed],
+    h: &Hash32,
+) -> Option<RefsBody> {
+    find_bulk::<RefsBody>(rid, peer, observed, h).map(|e| e.body)
+}
+
 pub(crate) trait HasRid {
     fn rid(&self) -> &Rid;
 }

@@ -32,6 +32,8 @@ pub enum ErrorCode {
     InconsistentView,
     Paging,
     WrongChain,
+    ProgramMissing,
+    ProgramRejected,
     Internal,
 }
 
@@ -64,6 +66,8 @@ impl ErrorCode {
             InconsistentView => "E_INCONSISTENT_VIEW",
             Paging => "E_PAGING",
             WrongChain => "E_WRONG_CHAIN",
+            ProgramMissing => "E_PROGRAM_MISSING",
+            ProgramRejected => "E_PROGRAM_REJECTED",
             Internal => "E_INTERNAL",
         }
     }

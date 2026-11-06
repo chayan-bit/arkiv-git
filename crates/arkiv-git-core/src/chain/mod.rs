@@ -8,7 +8,7 @@ mod identity;
 
 pub use accept::{
     AcceptedHead, CompletenessObs, HeadInputs, accept_head, check_completeness, check_control_set,
-    check_requires,
+    check_requires, find_refs,
 };
 pub use anchor::{AnchorChain, AnchorLink, Start, anchor_chain};
 pub use bind::{BindChain, BindLink, bind_chain};

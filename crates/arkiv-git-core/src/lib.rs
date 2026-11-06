@@ -27,8 +27,8 @@ pub use canonical::{CanonicalRefs, canonical_refs};
 pub use chain::{
     AcceptedHead, AnchorChain, AnchorLink, BindChain, BindLink, CompletenessObs, Equivocation,
     HeadInputs, IdentityChain, PeerInfo, Revision, Start, VerifiedOp, accept_head, anchor_chain,
-    bind_chain, check_completeness, check_control_set, check_requires, identity_chain, maj,
-    peer_key, verify_ops,
+    bind_chain, check_completeness, check_control_set, check_requires, find_refs, identity_chain,
+    maj, peer_key, verify_ops,
 };
 pub use chunk::{CHUNK_SIZE, MAX_PACK_SIZE, chunk_count, chunk_hashes, split, verify_chunk};
 pub use entity::{ENTITY_LAYOUT_VERSION, Entity, entity_attributes, open, verify_entity};

@@ -39,6 +39,8 @@ pub struct View {
     pub resolved: BTreeMap<Nid, PeerInfo>,
     pub peers: BTreeMap<Nid, PeerView>,
     pub equivocations: Vec<Equivocation>,
+    /// The pinned repo program folded over the repo; set by fetch ([`crate::fetch::sync`]).
+    pub program: Option<crate::program::Enforced>,
 }
 
 impl View {
@@ -238,6 +240,7 @@ pub async fn build<A: Arkiv>(a: &A, rid: &Rid, state: &State, want: &Want) -> Re
         resolved,
         peers,
         equivocations,
+        program: None,
     })
 }
 

@@ -227,6 +227,8 @@ fn error_codes_match_section_7_3() {
         (ErrorCode::InconsistentView, "E_INCONSISTENT_VIEW", true),
         (ErrorCode::Paging, "E_PAGING", true),
         (ErrorCode::WrongChain, "E_WRONG_CHAIN", false),
+        (ErrorCode::ProgramMissing, "E_PROGRAM_MISSING", false),
+        (ErrorCode::ProgramRejected, "E_PROGRAM_REJECTED", false),
         (ErrorCode::Internal, "E_INTERNAL", false),
     ];
     for (c, s, r) in all {

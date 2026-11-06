@@ -42,7 +42,7 @@ pub async fn list<A: Arkiv>(
 }
 
 /// Keys of every `ag.nid` named in `observed` that has a valid self-signed `peer` document.
-async fn peer_keys<A: Arkiv>(
+pub(crate) async fn peer_keys<A: Arkiv>(
     a: &A,
     observed: &[Observed],
 ) -> Result<BTreeMap<Nid, arkiv_git_crypto::PublicKey>> {

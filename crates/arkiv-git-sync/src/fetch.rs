@@ -18,6 +18,7 @@ use crate::{Result, SyncError, packs, warn};
 pub async fn sync<A: Arkiv>(a: &A, repo: &Repo, want: &Want) -> Result<View> {
     let mut state = State::load(&repo.state_path())?;
     let mut view = view::build(a, &repo.rid, &state, want).await?;
+    view.program = crate::program::enforce(a, &view).await?;
     warn_expiry(&view);
     let must: BTreeSet<Nid> = view.delegates().iter().chain(&want.must).copied().collect();
     let applied = apply_all(a, repo, &mut view, &state, &must).await?;
@@ -201,7 +202,7 @@ pub struct Listing {
     pub head: Option<String>,
 }
 
-/// Canonical refs (design 3.8), or one peer's verified refs for `arkiv://<rid>/<nid>`.
+/// Canonical refs (design 3.8; with a pinned program, its accepted heads), or one peer's verified refs for `arkiv://<rid>/<nid>`.
 pub fn listing(view: &View, peer: Option<&Nid>) -> Listing {
     let id = &view.identity.head().body;
     let refs: Vec<(String, String)> = match peer {
@@ -211,6 +212,12 @@ pub fn listing(view: &View, peer: Option<&Nid>) -> Listing {
             .and_then(|p| p.head.as_ref())
             .map(|h| oids_named(&h.refs))
             .unwrap_or_default(),
+        None if view.program.is_some() => view
+            .program
+            .iter()
+            .flat_map(|p| &p.outcome.heads)
+            .map(|(n, o)| (n.clone(), hex::encode(o)))
+            .collect(),
         None => {
             let votes: BTreeMap<Nid, RefsBody> = view
                 .peers
