@@ -1,6 +1,6 @@
 # MCP server for AI agents
 
-Status: implemented and tested on the in-memory fake; the live Rabdi agent run is blocked, see "Live demo".
+Status: implemented, tested on the in-memory fake, and driven live on Rabdi by a Codex agent (`docs/live/agent-bounty.md`).
 Date: 2026-11-07.
 Builds on `docs/p3/agents.md` (scoped grants), `docs/p3/cob-ops.md`, `docs/p3/escrow.md`; code in `crates/arkiv-git-mcp`.
 
@@ -34,6 +34,7 @@ A failed child is a tool error (`isError: true`) whose text is `{"code", "messag
 | Tool | Arguments | Runs | Returns |
 | --- | --- | --- | --- |
 | `repo_clone` | `repo`, `dir` | `git clone arkiv::<rid> <dir>` | `{dir}` |
+| `git_push` | `repo`, `dir`, `branch`, optional `message` | `git add -A`, `git commit` (when `message` is set), `git push <url> HEAD:refs/heads/<branch>` | `{head}` |
 | `op_list` | `repo`, optional `type`, `action`, `object` | `arkiv-git op list --json` | JSON array of verified ops `{id, object, author, type, action, parents, ts_ms, block, payload}` |
 | `op_post` | `repo`, `type`, `action`, optional `object`, `parents`, `payload` | `arkiv-git op post` | `{id}` |
 | `attach_proof` | `repo`, `payload`, `receipt`, `public`, optional `type` (default `xyz.arkiv.patch`), `action` (default `create`), `object`, `parents` | `arkiv-git op attach-proof` | `{id}` of the op that carries `proofs` |
@@ -42,7 +43,8 @@ A failed child is a tool error (`isError: true`) whose text is `{"code", "messag
 
 `repo` is `arkiv::<rid>` or the bare rid.
 `action` filtering in `op_list` happens in the server, because the CLI filters only by type and object.
-There is no push tool: the agent pushes with `git push <url> HEAD:refs/heads/<branch>` from its clone, which the remote helper already handles, including program refusals.
+`git_push` runs git in the server process, so an agent whose own shell is sandboxed without network (Codex `workspace-write`) can still push, and the access key stays in the server's environment instead of the model's shell.
+Relative `dir`, `receipt` and `public` paths resolve against the server's working directory.
 
 `arkiv-git op attach-proof` is the CLI half of `attach_proof`: it chunks the receipt into `xyz.arkiv.blob` ops of at most 30,000 bytes, skips chunks whose `sha256` is already posted on the repo (so a retry after `E_INSUFFICIENT_FUNDS` only posts what is missing), then posts the given op with `{kind: "risc0", receipt, chunks, public}` appended to its payload's `proofs`.
 
@@ -80,25 +82,59 @@ A headless agent run allows only the MCP tools, git and file edits:
 
 ```sh
 claude -p "<task>" --mcp-config .mcp.json --strict-mcp-config \
-  --allowedTools "mcp__arkiv-git__*" "Bash(git:*)" Read Edit Write
+  --allowedTools "mcp__arkiv-git__*" Read Edit Write
 ```
+
+## Setup with Codex
+
+Register the server once:
+
+```sh
+codex mcp add arkiv-git --env ARKIV_GIT_HOME="$HOME/.arkiv-git-agent" -- arkiv-git-mcp
+```
+
+Or put it in `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.arkiv-git]
+command = "arkiv-git-mcp"
+env = { ARKIV_GIT_HOME = "/path/to/agent/.arkiv-git" }
+env_vars = ["ARKIV_ACCESS_KEY"]        # forwarded by name, never written here
+tool_timeout_sec = 900                 # attach_proof posts several blob ops
+default_tools_approval_mode = "approve"
+```
+
+The live demo passes the same settings per run with `-c` and leaves the user config alone:
+
+```sh
+codex exec --json --ephemeral --ignore-user-config --skip-git-repo-check \
+  -s workspace-write -C <session dir> \
+  -c 'mcp_servers.arkiv-git.command="/abs/path/arkiv-git-mcp"' \
+  -c 'mcp_servers.arkiv-git.cwd="<session dir>"' \
+  -c 'mcp_servers.arkiv-git.env={ARKIV_GIT_HOME="<agent home>/.arkiv-git"}' \
+  -c 'mcp_servers.arkiv-git.env_vars=["ARKIV_ACCESS_KEY"]' \
+  -c 'mcp_servers.arkiv-git.tool_timeout_sec=900' \
+  -c 'mcp_servers.arkiv-git.default_tools_approval_mode="approve"' \
+  "<task>"
+```
+
+Without `default_tools_approval_mode = "approve"`, `codex exec` refuses every MCP call with "MCP tool call requires approval, but approval policy is never".
 
 ## Tests
 
-`crates/arkiv-git-mcp/src/tests.rs` drives every tool through the real `arkiv-git` binary on the file-persisted fake chain: post and list with type and action filters, clone, `attach_proof` twice to check blob reuse and the `proofs` entry, `program_status`, and coded errors from the CLI (`E_*` with exit 1), from git (exit 128) and from the escrow audit.
+`crates/arkiv-git-mcp/src/tests.rs` drives every tool through the real `arkiv-git` binary on the file-persisted fake chain: post and list with type and action filters, clone, `git_push` of an edit to the pusher's namespace, `attach_proof` twice to check blob reuse and the `proofs` entry, `program_status`, and coded errors from the CLI (`E_*` with exit 1), from git (exit 128) and from the escrow audit.
 `crates/arkiv-git-cli/tests/agent_bounty.rs` now posts its proof with `op attach-proof` and still checks `proven: true`, the approval gate and the escrow payout end to end.
-A stdio handshake (`initialize`, `tools/list`) against the built binary lists the six tools with their schemas.
+A stdio handshake (`initialize`, `tools/list`) against the built binary lists the tools with their schemas.
 
 ## Live demo
 
-`demo/agent-bounty.sh` runs the whole bounty with headless Claude Code as the agent: `setup` creates the alice, escrow, agent and bank identities, `alice` creates the repo, appoints the escrow, pins `agent-bounty.rhai` with `agent_proof()` set to `"required"`, grants the agent `patch` with a cap, opens an issue whose `spec_hash` matches the committed receipt and deposits the bounty, `agent` runs `claude -p` with only this MCP server, git and file edits allowed, `merge` shows `main` refusing the agent head until alice approves, records the merge and runs `escrow run --once`, and `verify` runs the keyless audit and reads the payout tx and the agent's balance delta from the chain.
+`demo/agent-bounty.sh` runs the whole bounty with a headless Codex CLI as the agent: `setup` creates the alice, escrow, agent and bank identities, `alice` creates the repo, appoints the escrow, pins `agent-bounty.rhai` with `agent_proof()` set to `"required"`, grants the agent `patch` with a cap, opens an issue whose `spec_hash` matches the committed receipt and deposits the bounty, `agent` runs `codex exec` with this MCP server and a workspace-write sandbox without network, `merge` shows `main` refusing the agent head until alice approves, records the merge and runs `escrow run --once`, and `verify` runs the keyless audit and reads the payout tx and the agent's balance delta from the chain.
+`demo/show-agent.py` turns the `codex exec --json` events into one line per agent message, MCP call, edit and shell command.
 `crates/arkiv-git-cli/tests/rabdi_agent.rs` funds the demo from the throwaway key (one transfer, at most 0.08 tGLM) and sweeps it back; `demo/agent-bounty.tape` records the live phases.
+Results, transactions and costs are in `docs/live/agent-bounty.md`.
+Video of the live run: https://raw.githubusercontent.com/chayan-bit/arkiv-git/demo-assets/agent-bounty-codex-live.mp4 (GIF: https://raw.githubusercontent.com/chayan-bit/arkiv-git/demo-assets/agent-bounty-codex-live.gif).
 
-The live run has not happened.
-In this environment the standalone `claude` CLI is not logged in (`claude auth status` reports `loggedIn: false`), and a `claude -p` started from inside the Claude desktop app's session fails with "OAuth session expired and could not be refreshed".
-No testnet funds were spent.
-To run it, log the CLI in once (`claude auth login`), then follow the steps in the header of `demo/agent-bounty.sh` with `MODE=live`.
-Video: not recorded yet.
+A headless Claude Code run was tried first and could not authenticate in this environment (`claude auth status` reports `loggedIn: false`; `claude -p` inside the desktop app's session fails with "OAuth session expired and could not be refreshed"); the `.mcp.json` setup above is unchanged for a logged-in Claude Code.
 
 ## Limits
 
