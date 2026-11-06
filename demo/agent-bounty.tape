@@ -1,30 +1,35 @@
-# Live AI-agent bounty on Rabdi (docs/p3/mcp.md, docs/live/agent-bounty.md).
-# Run after `setup` and funding, from a shell where /tmp/arkiv-git is the repo checkout,
-# /tmp/agent-demo the demo ROOT, and ARKIV_ACCESS_KEY is already exported (never typed here):
-#   nix-shell -p vhs --run 'vhs demo/agent-bounty.tape'
-Output demo/agent-bounty.gif
+# Live AI-agent bounty on Rabdi with Codex as the agent (docs/live/agent-bounty.md).
+# Run after `setup` and funding, with /tmp/arkiv-git the repo checkout, /tmp/agent-demo the
+# demo ROOT and ARKIV_ACCESS_KEY already exported (never typed here):
+#   cd /tmp/arkiv-git && nix-shell -p vhs --run 'vhs demo/agent-bounty.tape'
+# Output goes to the demo root; the rendered files belong on the demo-assets branch.
+Output /tmp/agent-demo/agent-bounty.gif
+Output /tmp/agent-demo/agent-bounty.mp4
 Set Shell bash
-Set FontSize 14
-Set Width 1300
-Set Height 760
-Set TypingSpeed 20ms
-Set PlaybackSpeed 6
+Set FontSize 13
+Set Width 1280
+Set Height 720
+Set Framerate 12
+Set TypingSpeed 15ms
+Set PlaybackSpeed 10
 
 Hide
 Type "export PS1='> ' MODE=live ROOT=/tmp/agent-demo && cd /tmp/arkiv-git && clear"
 Enter
 Show
 
+Type "# arkiv-git on the live Rabdi testnet: a Codex agent claims a bounty through arkiv-git-mcp"
+Enter
 Type "demo/agent-bounty.sh alice"
 Enter
-Wait@10m
+Wait@15m
 Type "demo/agent-bounty.sh agent"
 Enter
-Wait@20m
+Wait@25m
 Type "demo/agent-bounty.sh merge"
 Enter
-Wait@10m
+Wait@15m
 Type "demo/agent-bounty.sh verify"
 Enter
 Wait@5m
-Sleep 4s
+Sleep 30s

@@ -8,7 +8,7 @@
 # wallets funded between `setup` and `alice` (crates/arkiv-git-cli/tests/rabdi_agent.rs).
 # Keys stay in each actor's $ARKIV_GIT_HOME; nothing here prints key material.
 #
-# Live run (needs a logged-in `claude` CLI and ARKIV_ACCESS_KEY in the environment):
+# Live run (needs a logged-in `codex` CLI and ARKIV_ACCESS_KEY in the environment):
 #   MODE=live ROOT=<dir> demo/agent-bounty.sh setup
 #   lockf <lock> env ARKIV_GIT_RABDI=1 ARKIV_GIT_AGENT_ROOT=<dir> ARKIV_GIT_AGENT_FUND_WEI=<wei> \
 #     cargo test -p arkiv-git-cli --test rabdi_agent bank_fund -- --ignored
@@ -28,6 +28,7 @@ BOUNTY=${BOUNTY:-1000000000000000}  # 0.001 tGLM
 CAP=${CAP:-2000000000000000}        # the agent's per-patch payout cap
 RPC=https://rpc.rabdi.db-chain.testnet.arkiv.network
 EXPLORER=https://rabdi.explorer.arkiv.network
+CODEX_MODEL=${CODEX_MODEL:-gpt-6.1-sol}
 
 export PATH="$BIN:$PATH" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME=demo GIT_AUTHOR_EMAIL=demo@example.com
@@ -101,26 +102,32 @@ alice() {
 }
 
 agent() {
-  say "the agent (headless Claude Code) works the bounty through arkiv-git-mcp"
+  say "the agent (headless Codex CLI) works the bounty through arkiv-git-mcp"
   local dir=$ROOT/agent/session
   mkdir -p "$dir"
-  cat >"$dir/mcp.json" <<EOF
-{"mcpServers": {"arkiv-git": {"command": "$BIN/arkiv-git-mcp", "env": {
-  "HOME": "$ROOT/agent", "ARKIV_GIT_HOME": "$ROOT/agent/.arkiv-git"}}}}
-EOF
   cp "$FIX/demo.receipt" "$FIX/demo.public.json" "$dir/"
+  local env="{ARKIV_GIT_HOME=\"$ROOT/agent/.arkiv-git\", GIT_CONFIG_GLOBAL=\"/dev/null\""
+  env+=", GIT_AUTHOR_NAME=\"agent\", GIT_AUTHOR_EMAIL=\"agent@example.com\""
+  env+=", GIT_COMMITTER_NAME=\"agent\", GIT_COMMITTER_EMAIL=\"agent@example.com\"}"
   local prompt="You are an AI agent with a scoped grant on the arkiv-git repo $URL.
-Use the arkiv-git MCP tools. 1) op_list the repo and pick the xyz.arkiv.issue create op
-with a bounty that no xyz.arkiv.patch names yet. 2) repo_clone it into ./work.
-3) Fix what the issue asks in ./work, commit, and push with
-'git -C work push $URL HEAD:refs/heads/agent/<first 8 chars of the issue id>'.
-4) attach_proof with payload {\"title\": <short>, \"head\": <full commit sha>, \"issue\": <issue id>},
-receipt ./demo.receipt, public ./demo.public.json. Reply with the patch op id only."
-  (cd "$dir" && ARKIV_GIT_HOME=$ROOT/agent/.arkiv-git claude -p "$prompt" \
-    --mcp-config "$dir/mcp.json" --strict-mcp-config --no-session-persistence \
-    --allowedTools "mcp__arkiv-git__*" "Bash(git:*)" "Read" "Edit" "Write" \
-    --output-format stream-json --verbose |
-    python3 "$REPO_DIR/demo/show-agent.py")
+Work only through the arkiv-git MCP tools and file edits in ./work.
+1) op_list the repo and pick the xyz.arkiv.issue create op with a bounty that no
+xyz.arkiv.patch names yet. 2) repo_clone it into work. 3) Fix what the issue asks by editing
+the file in ./work. 4) git_push dir work, branch agent/<first 8 chars of the issue id>, with a
+commit message. 5) attach_proof with payload {\"title\": <short>, \"head\": <the pushed head>,
+\"issue\": <issue id>}, receipt demo.receipt, public demo.public.json. Reply with the patch op id."
+  # The MCP server runs outside Codex's sandbox and gets the access key from this
+  # environment by name; the model's own shell never sees it and has no network.
+  echo "codex model: $CODEX_MODEL"
+  codex exec --json --ephemeral -m "$CODEX_MODEL" --ignore-user-config --ignore-rules --skip-git-repo-check \
+    -s workspace-write -C "$dir" \
+    -c "mcp_servers.arkiv-git.command=\"$BIN/arkiv-git-mcp\"" \
+    -c "mcp_servers.arkiv-git.cwd=\"$dir\"" \
+    -c "mcp_servers.arkiv-git.env=$env" \
+    -c 'mcp_servers.arkiv-git.env_vars=["ARKIV_ACCESS_KEY","ARKIV_GIT_BACKEND","ARKIV_GIT_DATA_LIFETIME","ARKIV_GIT_CONTROL_LIFETIME"]' \
+    -c 'mcp_servers.arkiv-git.tool_timeout_sec=900' \
+    -c 'mcp_servers.arkiv-git.default_tools_approval_mode="approve"' \
+    "$prompt" </dev/null 2>"$ROOT/agent/codex.stderr" | tee "$ROOT/agent/session.jsonl" | python3 "$REPO_DIR/demo/show-agent.py"
 }
 
 merge() {
