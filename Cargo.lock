@@ -1250,6 +1250,7 @@ dependencies = [
  "arkiv-git-sync",
  "arkiv-git-timelock",
  "arkiv-git-zk",
+ "arkiv-git-zk-core",
  "clap",
  "hex",
  "serde",
