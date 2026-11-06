@@ -913,6 +913,7 @@ dependencies = [
  "arkiv-git-sync",
  "clap",
  "hex",
+ "serde_json",
  "tempfile",
  "thiserror",
  "tokio",

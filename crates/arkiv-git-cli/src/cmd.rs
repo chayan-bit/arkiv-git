@@ -39,6 +39,9 @@ pub enum Cmd {
     Status { repo: String },
     /// Print the wallet address, its balance and an estimate of what a push needs.
     Fund(FundArgs),
+    /// Collaborative-object ops: post one, list verified ones.
+    #[command(subcommand)]
+    Op(crate::op::OpCmd),
 }
 
 #[derive(Debug, Subcommand)]
@@ -137,7 +140,7 @@ pub struct FundArgs {
     pub bytes: u64,
 }
 
-fn rid_of(repo: &str) -> Result<Rid> {
+pub(crate) fn rid_of(repo: &str) -> Result<Rid> {
     let url = repo.strip_prefix("arkiv::").unwrap_or(repo);
     Ok(parse_url(url)?.rid)
 }
@@ -401,6 +404,7 @@ pub fn run(cli: &Cli) -> Result<()> {
             Cmd::Search(s) => search_cmd(&a, s).await,
             Cmd::Status { repo } => status_cmd(&a, &cfg, repo).await,
             Cmd::Fund(f) => fund_cmd(&a, &cfg, f).await,
+            Cmd::Op(o) => crate::op::run(&a, &cfg, o).await,
         }
     })?
 }

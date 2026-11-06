@@ -246,3 +246,81 @@ fn errors_map_to_git_and_exit_codes() {
         String::from_utf8_lossy(&cloned.stderr)
     );
 }
+
+#[test]
+fn ops_post_and_list_through_the_cli() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let log = tmp.path().join("chain.log");
+    let (alice, bob) = (
+        User::new(tmp.path(), "alice", &log),
+        User::new(tmp.path(), "bob", &log),
+    );
+    fund(&log, field(&alice.arkiv(&["keys", "init"]), "wallet:"));
+    fund(&log, field(&bob.arkiv(&["keys", "init"]), "wallet:"));
+    let url = field(&alice.arkiv(&["init", "--name", "ops"]), "url:").to_owned();
+    let post = |u: &User, args: &[&str]| {
+        let base = ["op", "post", "--repo", &url, "--type", "xyz.arkiv.issue"];
+        u.arkiv(&[&base[..], args].concat()).trim().to_owned()
+    };
+    let obj = post(
+        &alice,
+        &["--action", "create", "--payload-json", r#"{"title":"bug"}"#],
+    );
+    assert_eq!(obj.len(), 64, "{obj}");
+    let c1 = post(
+        &bob,
+        &[
+            "--action",
+            "comment",
+            "--object",
+            &obj,
+            "--parent",
+            &obj,
+            "--payload-json",
+            r#"{"body":"same","n":[1,-2]}"#,
+        ],
+    );
+
+    let text = alice.arkiv(&["op", "list", "--repo", &url, "--object", &obj]);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 2, "{text}");
+    assert!(lines[0].starts_with(&obj) && lines[0].contains(r#"{"title":"bug"}"#));
+    assert!(lines[1].starts_with(&c1) && lines[1].contains(" comment "));
+    let listed = bob.arkiv(&[
+        "op",
+        "list",
+        "--repo",
+        &url,
+        "--type",
+        "xyz.arkiv.issue",
+        "--json",
+    ]);
+    let v: serde_json::Value = serde_json::from_str(&listed).expect("json");
+    assert_eq!(v[1]["id"], c1.as_str());
+    assert_eq!(v[1]["object"], obj.as_str());
+    assert_eq!(v[1]["parents"][0], obj.as_str());
+    assert_eq!(
+        v[1]["payload"],
+        serde_json::json!({"body": "same", "n": [1, -2]})
+    );
+
+    let arkiv = env!("CARGO_BIN_EXE_arkiv-git");
+    let float = alice.run(
+        arkiv,
+        tmp.path(),
+        &[
+            "op",
+            "post",
+            "--repo",
+            &url,
+            "--type",
+            "t",
+            "--action",
+            "create",
+            "--payload-json",
+            "[1.5]",
+        ],
+    );
+    assert_eq!(float.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&float.stderr).contains("E_BAD_FORMAT"));
+}
