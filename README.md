@@ -100,13 +100,14 @@ To do the same by hand, point the CLI at a log file:
 export ARKIV_GIT_BACKEND=mem:/tmp/arkiv.log
 export ARKIV_GIT_HOME=/tmp/arkiv-git-demo   # optional, keeps the seed out of ~/.arkiv-git
 arkiv-git keys init                         # prints your nid and wallet address
+arkiv-git fund --dev 1000                   # dev faucet: credits 1000 tGLM on the fake chain
 arkiv-git init --name demo                  # prints rid and url
 git push arkiv::<rid> main                  # from any git repo with a commit on main
 git clone arkiv::<rid> demo-clone
 ```
 
-Known gap: the `mem:` wallet starts with a zero balance and the CLI has no command to fund it, so `arkiv-git init` stops with `E_INSUFFICIENT_FUNDS` unless the wallet was funded through the library.
-The e2e test does that funding; for a hand run, fund the printed wallet address the way `fund()` in `crates/arkiv-git-cli/tests/e2e.rs` does.
+`arkiv-git fund --dev <amount>` works only with a `mem:` backend; on any other backend it refuses, because real chains are funded from a faucet.
+`demo/programs.sh` runs the repo-program walkthrough (branch protection, local refusal, approved push, clone) the same way.
 
 ### On the Rabdi testnet
 
