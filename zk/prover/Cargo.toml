@@ -1,0 +1,12 @@
+[package]
+name = "zk-prover"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+arkiv-git-zk = { path = "../../crates/arkiv-git-zk", features = ["prove"] }
+arkiv-git-zk-core = { path = "../../crates/arkiv-git-zk-core" }
+getrandom = "0.3"
+methods = { path = "../methods" }
+serde_json = "1"

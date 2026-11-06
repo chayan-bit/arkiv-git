@@ -1,0 +1,14 @@
+#!/bin/sh
+# risc0 compiles its Metal kernels with `xcrun --sdk macosx metal`. Two fixes for this Mac:
+# nix's xcbuild xcrun cannot see Apple's Metal toolchain, so metal/metallib go to the system
+# xcrun outside the nix SDK env; and risc0's poseidon2.metal fails under the macOS 27 Metal
+# language default, so the deployment target is pinned to 14.0 unless the caller set one.
+tool=$1; [ "$1" = --sdk ] && tool=$3
+case "$tool" in
+  metal | metallib)
+    exec env -u DEVELOPER_DIR -u SDKROOT MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-14.0}" \
+      /usr/bin/xcrun "$@" ;;
+esac
+self_dir=$(cd "$(dirname "$0")" && pwd)
+PATH=$(printf %s "$PATH" | tr : '\n' | grep -vx "$self_dir" | paste -sd: -)
+exec xcrun "$@"
