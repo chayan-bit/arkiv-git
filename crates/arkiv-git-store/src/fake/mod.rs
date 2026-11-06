@@ -29,7 +29,7 @@ pub use persist::FileMemArkiv;
 
 use crate::{
     ARKIV_ADDRESS, Arkiv, BLOCK_GAS_LIMIT, MAX_RAW_TX_BYTES, Query, QueryOpts, QueryPage, Receipt,
-    SignedTx, StoreError, TX_GAS_CAP, execute_calldata,
+    SignedTx, StoreError, TX_GAS_CAP, TxInfo, execute_calldata,
 };
 
 /// Txs one sender may have pending; the 17th is refused (stricter than Rabdi, which queues more).
@@ -52,6 +52,18 @@ struct Pending {
     tip: u128,
 }
 
+impl Pending {
+    fn info(&self, block_number: Option<u64>) -> TxInfo {
+        TxInfo {
+            hash: self.hash,
+            from: self.from,
+            to: Some(self.to),
+            value: self.value,
+            block_number,
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 struct Faults {
     drop: BTreeSet<u64>,
@@ -70,6 +82,7 @@ struct Inner {
     world: World,
     pool: Vec<Pending>,
     receipts: HashMap<TxHash, Receipt>,
+    txs: HashMap<TxHash, TxInfo>,
     block_gas: HashMap<(u64, Address), u64>,
     sends: u64,
     faults: Faults,
@@ -88,6 +101,7 @@ impl MemArkiv {
             world: World::default(),
             pool: Vec::new(),
             receipts: HashMap::new(),
+            txs: HashMap::new(),
             block_gas: HashMap::new(),
             sends: 0,
             faults: Faults::default(),
@@ -327,6 +341,7 @@ impl Inner {
             effective_gas_price: price,
         };
         self.receipts.insert(p.hash, r);
+        self.txs.insert(p.hash, p.info(Some(n)));
         gas_used
     }
 
@@ -434,6 +449,9 @@ impl Arkiv for MemArkiv {
     async fn tx_count(&self, a: Address) -> Result<u64, StoreError> {
         Ok(self.lock().pending_nonce(a))
     }
+    async fn tx_count_mined(&self, a: Address) -> Result<u64, StoreError> {
+        Ok(self.lock().confirmed_nonce(a))
+    }
     async fn estimate(&self, from: Address, ops: &[Operation]) -> Result<u64, StoreError> {
         self.lock().estimate(from, ops)
     }
@@ -444,5 +462,10 @@ impl Arkiv for MemArkiv {
     }
     async fn receipt(&self, h: TxHash) -> Result<Option<Receipt>, StoreError> {
         Ok(self.lock().receipts.get(&h).copied())
+    }
+    async fn transaction(&self, h: TxHash) -> Result<Option<TxInfo>, StoreError> {
+        let g = self.lock();
+        let pending = || g.pool.iter().find(|p| p.hash == h).map(|p| p.info(None));
+        Ok(g.txs.get(&h).copied().or_else(pending))
     }
 }

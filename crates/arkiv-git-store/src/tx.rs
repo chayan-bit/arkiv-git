@@ -110,6 +110,18 @@ pub struct Receipt {
     pub effective_gas_price: u128,
 }
 
+/// What a tx moved: sender, recipient and value (`eth_getTransactionByHash`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TxInfo {
+    pub hash: TxHash,
+    pub from: Address,
+    /// `None` for a contract creation.
+    pub to: Option<Address>,
+    pub value: U256,
+    /// `None` while pending.
+    pub block_number: Option<u64>,
+}
+
 /// `execute(ops)` calldata.
 pub fn execute_calldata(ops: &[Operation]) -> Bytes {
     IEntityRegistry::executeCall { ops: ops.to_vec() }

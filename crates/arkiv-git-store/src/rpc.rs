@@ -17,7 +17,7 @@ use serde_json::{Value as Json, json};
 
 use crate::{
     ARKIV_ADDRESS, Arkiv, MAX_RAW_TX_BYTES, Query, QueryOpts, QueryPage, RABDI_CHAIN_ID, RABDI_RPC,
-    Receipt, SignedTx, StoreError, decode_revert, execute_calldata,
+    Receipt, SignedTx, StoreError, TxInfo, decode_revert, execute_calldata,
 };
 
 /// Header carrying the optional access key.
@@ -78,6 +78,16 @@ struct RawReceipt {
     status: U64,
     gas_used: U64,
     effective_gas_price: U128,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RawTx {
+    hash: TxHash,
+    from: Address,
+    to: Option<Address>,
+    value: U256,
+    block_number: Option<U64>,
 }
 
 #[derive(Deserialize)]
@@ -232,6 +242,12 @@ impl Arkiv for RpcArkiv {
             .map(u64_of)
     }
 
+    async fn tx_count_mined(&self, a: Address) -> Result<u64, StoreError> {
+        self.call::<U64>("eth_getTransactionCount", json!([a, "latest"]))
+            .await
+            .map(u64_of)
+    }
+
     async fn estimate(&self, from: Address, ops: &[Operation]) -> Result<u64, StoreError> {
         let tx = json!({ "from": from, "to": ARKIV_ADDRESS, "data": execute_calldata(ops) });
         self.call::<U64>("eth_estimateGas", json!([tx]))
@@ -277,6 +293,17 @@ impl Arkiv for RpcArkiv {
             success: u64_of(r.status) == 1,
             gas_used: u64_of(r.gas_used),
             effective_gas_price: r.effective_gas_price.to::<u128>(),
+        }))
+    }
+
+    async fn transaction(&self, h: TxHash) -> Result<Option<TxInfo>, StoreError> {
+        let t: Option<RawTx> = self.call("eth_getTransactionByHash", json!([h])).await?;
+        Ok(t.map(|t| TxInfo {
+            hash: t.hash,
+            from: t.from,
+            to: t.to,
+            value: t.value,
+            block_number: t.block_number.map(u64_of),
         }))
     }
 }
