@@ -39,6 +39,9 @@ pub enum Cmd {
     Status { repo: String },
     /// Print the wallet address, its balance and an estimate of what a push needs.
     Fund(FundArgs),
+    /// Timelock encryption on drand quicknet: seal now, anyone opens at time T.
+    #[command(subcommand)]
+    Timelock(crate::timelock::TimelockCmd),
 }
 
 #[derive(Debug, Subcommand)]
@@ -391,10 +394,13 @@ pub fn run(cli: &Cli) -> Result<()> {
     if let Cmd::Keys(k) = &cli.cmd {
         return keys_cmd(k);
     }
+    if let Cmd::Timelock(t) = &cli.cmd {
+        return crate::timelock::run(t);
+    }
     crate::block_on(async {
         let (a, cfg) = backend::connect().await?;
         match &cli.cmd {
-            Cmd::Keys(_) => Ok(()),
+            Cmd::Keys(_) | Cmd::Timelock(_) => Ok(()),
             Cmd::Init(i) => init_cmd(&a, &cfg, i).await,
             Cmd::Id(c) => id_cmd(&a, &cfg, c).await,
             Cmd::Keepalive(k) => keepalive_cmd(&a, &cfg, k).await,

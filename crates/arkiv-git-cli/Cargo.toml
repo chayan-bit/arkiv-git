@@ -22,6 +22,7 @@ alloy-signer-local = "2.5"
 arkiv-git-core = { path = "../arkiv-git-core" }
 arkiv-git-store = { path = "../arkiv-git-store", features = ["fake"] }
 arkiv-git-sync = { path = "../arkiv-git-sync", features = ["fake"] }
+arkiv-git-timelock = { path = "../arkiv-git-timelock" }
 clap = { version = "4", features = ["derive"] }
 hex = "0.4"
 thiserror = "2"
