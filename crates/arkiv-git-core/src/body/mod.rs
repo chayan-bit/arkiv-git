@@ -1,11 +1,13 @@
 //! CBOR body types for every signed kind (design section 2.2).
 
 mod anchor;
+mod cob;
 mod id;
 mod peer;
 mod refs;
 
 pub use anchor::{AnchorBody, ManifestBody, Require};
+pub use cob::{CREATE, CobOpBody, MAX_ACTION, MAX_PAYLOAD, MAX_TYPE_NAME};
 pub use id::IdBody;
 pub use peer::{BindBody, IdAccBody, PeerBody};
 pub use refs::{RefEntry, RefsBody};

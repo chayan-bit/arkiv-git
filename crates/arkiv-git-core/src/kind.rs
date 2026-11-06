@@ -10,7 +10,7 @@ pub enum Kind {
     Anchor,
     Manifest,
     Chunk,
-    /// Reserved for P3; P1 reads and writes none.
+    /// Collaborative-object op (docs/p3/cob-ops.md).
     Cob,
 }
 
