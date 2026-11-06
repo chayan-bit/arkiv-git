@@ -5,24 +5,24 @@ Total narration: 414 words, about 166 s at 150 words per minute, in a 3:00 cut (
 Voice: first person, direct, technical, no filler.
 Sentences are capitalised because this is read aloud; the raw lowercase register is used only for the tweet.
 Every claim carries a status: LIVE (ran on the Rabdi testnet), FAKE (ran only on the in-memory Arkiv, the `mem:` backend) or NOT YET.
-Never say "live" over a FAKE scene; the on-screen caption for those says "in-memory chain".
+Scenes 2 to 5 use only the all-live clip; FAKE now applies only to parts of scene 6, and any clip of a FAKE run carries an "in-memory chain" caption.
 
-## Existing clip to reuse
+## Clip to use
 
-`https://github.com/chayan-bit/arkiv-git/raw/demo-assets/arkiv-git-demo.gif` (MP4 at the same path, `.mp4`).
-Source tape: `demo/arkiv-git.tape`.
-Its scenes: 1 push and clone, 2 pinned program refuses then accepts, 3 `zk verify` pass and tamper fail, 4 timelock `E_TOO_EARLY`, 5 private repo `E_NOT_MEMBER`, 6 keyless clone of the live Rabdi repo.
-Scenes 1 to 5 run on the in-memory chain; only scene 6 is live.
+`https://github.com/chayan-bit/arkiv-git/raw/demo-assets/arkiv-git-demo-live.gif` (MP4 at the same path, `.mp4`, 2:30, played at 3x as its caption says).
+Source tape: `demo/arkiv-git.tape`; ids, addresses and checks in `docs/live/demo-video.md`.
+Every scene runs live on the Rabdi testnet: 1 init, push and a fresh clone by another user, 2 pinned program refuses a direct push, 3 bob's patch, alice's approval, accepted push and a keyless clone of the head, 4 private repo where the member clones and an outsider gets `E_NOT_MEMBER`, 5 keyless clone of the long-lived README repo.
+The older clip `arkiv-git-demo.gif` (mostly in-memory) stays on the branch but is superseded; only its offline `zk verify` scene is still referenced below.
 
 ## Scene table
 
 | # | Time | Scene | Source status | Words |
 |---|---|---|---|---|
 | 1 | 0:00-0:16 | problem | card | 38 |
-| 2 | 0:16-0:33 | the answer | FAKE | 42 |
+| 2 | 0:16-0:33 | the answer | LIVE | 42 |
 | 3 | 0:33-1:03 | live clone | LIVE | 67 |
-| 4 | 1:03-1:30 | program rejects a push | FAKE clip, LIVE result exists | 61 |
-| 5 | 1:30-1:55 | private repo | FAKE clip, LIVE result exists | 56 |
+| 4 | 1:03-1:30 | program rejects a push | LIVE | 61 |
+| 5 | 1:30-1:55 | private repo | LIVE | 56 |
 | 6 | 1:55-2:38 | proof-gated bounty to an AI agent | FAKE / NOT YET live | 101 |
 | 7 | 2:38-2:54 | why Arkiv | card | 37 |
 | 8 | 2:54-3:00 | close | card | 12 |
@@ -41,16 +41,16 @@ On screen: black card, large text, then the arkiv-git name.
 
 ### Scene 2 - the answer (0:16-0:33, 42 words)
 
-On screen: terminal, GIF scene 1.
-Commands shown: `as alice arkiv-git init --name demo`, `as alice git -C work push $URL main`, `as bob git clone -q $URL bob-clone && git -C bob-clone log --oneline`.
-Caption: "in-memory chain".
+On screen: terminal, live clip scene 1.
+Commands shown: `as alice arkiv-git init --name arkiv-git-live-video`, `as alice git -C work push $URL main`, `as bob git clone -q $URL bob-clone && git -C bob-clone log --oneline`, then the raw `arkiv_query` curl and the explorer link for the creator address.
+Caption: "Rabdi testnet, 3x".
 
 - arkiv-git ports Radicle to Arkiv, a data chain with no smart contracts, so the host is a public data layer.
 - It is stock git, `git push arkiv::` and `git clone arkiv::`, signed with post-quantum ML-DSA-65 plus Ed25519, and both halves must verify.
 
 ### Scene 3 - live clone (0:33-1:03, 67 words)
 
-On screen: GIF scene 6, then a browser at `https://rabdi.explorer.arkiv.network/address/0xc051EAe280800fdF4bAd0A2665aCdB1B4963688F` (the public control address, safe to show).
+On screen: live clip scene 5, then a browser at `https://rabdi.explorer.arkiv.network/address/0xc051EAe280800fdF4bAd0A2665aCdB1B4963688F` (the public control address, safe to show).
 Command shown: `git clone arkiv::z5b15ZhFLNackCqiyAL5y4dMj4MFGfVrtgLmZ9PPDU1AH live && git -C live log --oneline`.
 Caption: "Rabdi testnet, no keys".
 Expected output: `c9cf57a feat: v1` at the top.
@@ -63,9 +63,9 @@ The live clone needs an access key in the environment; export it off screen befo
 
 ### Scene 4 - program rejects a push (1:03-1:30, 61 words)
 
-On screen: GIF scene 2.
-Commands shown: `arkiv-git program pin --repo $URL --file programs/branch-protection.rhai`, a direct `git push` that prints `E_PROGRAM_REJECTED`, `op post` for a patch and a review approve, the same push accepted, `arkiv-git program status`.
-Caption: "in-memory chain"; add a second caption "same flow passed live on Rabdi, see README" over the final `program status`.
+On screen: live clip scenes 2 and 3.
+Commands shown: `arkiv-git program pin --repo $URL --file branch-protection.rhai`, a direct `git push` that prints `E_PROGRAM_REJECTED`, bob's push to his namespace and his patch op, alice's review and approve, the same v1 pushed and accepted, carol's keyless clone and `arkiv-git program status`.
+Caption: "Rabdi testnet, 3x".
 
 - A repo can pin a Rhai program by hash, so every client runs the same rules.
 - Here main only moves to a patch a delegate approved, so my direct push is refused before it spends any gas.
@@ -74,8 +74,8 @@ Caption: "in-memory chain"; add a second caption "same flow passed live on Rabdi
 
 ### Scene 5 - private repo (1:30-1:55, 56 words)
 
-On screen: GIF scene 5 (`as eve git clone $PRIV eve-clone` fails), then a cut to `docs/live/private-proofs.md` scrolled to the rows "carol's push refused" and "bob cannot read content pushed after removal".
-Captions: first clip "in-memory chain", table "Rabdi testnet, 2026-11-07".
+On screen: live clip scene 4 (alice adds bob, bob's clone decrypts, `as dave git clone $PRIV dave-vault` fails with `E_NOT_MEMBER`), then a cut to `docs/live/private-proofs.md` scrolled to the rows "carol's push refused" and "bob cannot read content pushed after removal".
+Captions: clip "Rabdi testnet, 3x", table "Rabdi testnet, 2026-11-07".
 
 - Private repos are MLS groups with post-quantum X-Wing key exchange, and Arkiv only stores ciphertext.
 - An outsider gets `E_NOT_MEMBER`, a read-only member cannot push, and the raw chain view does not show the repo name.
@@ -100,7 +100,7 @@ Status: the agent grant, proof policy and bounty obligation pass end to end on M
 - The program computes what is owed, and an escrow agent pays it on-chain.
 - That agent can steal or stall, but not undetectably, because the audit needs no keys and fails on any violation.
 
-Fallback if the agent demo does not land (same slot, 72 words, replaces the narration above; on screen GIF scene 3 where `arkiv-git zk verify` passes and then fails after one public input is changed, with the op table from `docs/p3/agents.md` and the audit command from `docs/p3/escrow.md` shown over it):
+Fallback if the agent demo does not land (same slot, 72 words, replaces the narration above; on screen the older clip's scene 3 where `arkiv-git zk verify` passes offline (no chain involved) and then fails after one public input is changed, with the op table from `docs/p3/agents.md` and the audit command from `docs/p3/escrow.md` shown over it):
 
 - Now the part I care about: AI agents that earn money under rules anyone can check.
 - A delegate signs a scoped, capped, revocable grant for the agent key, and the pinned program enforces it.
@@ -124,14 +124,14 @@ On screen: repo URL large, the rid below it in small text.
 ## Recording checklist
 
 - Resolution 1920x1080, terminal font size 22 or larger (the VHS tape renders at its own size; for a fresh screen capture use a 100x28 terminal), dark theme, no notifications, clock hidden.
-- Pre-run everything slow so nothing waits on chain: build with `cargo build --release` and `export PATH="$PWD/target/release:$PATH"`, run `demo/programs.sh` once, and render the tape with `nix-shell -p vhs --run 'vhs demo/arkiv-git.tape'`.
+- The live clip is already rendered; to re-record it, build with `cargo build --release`, run `demo/live-setup.sh fund`, render with `nix-shell -p vhs --run 'vhs demo/arkiv-git.tape'`, then run `demo/live-setup.sh sweep` (about 0.01 tGLM per take, see `docs/live/demo-video.md`).
 - Scene 3 needs the live repo to still be alive: it was created 2026-11-07 with 1 day lifetimes and then extended by `arkiv-git keepalive` to at least 14 days, so it should be alive, but run `arkiv-git status arkiv::z5b15ZhFLNackCqiyAL5y4dMj4MFGfVrtgLmZ9PPDU1AH` first to confirm.
 - Do one dry clone of the live rid in a scratch `$ARKIV_GIT_HOME` right before recording to confirm it still resolves and prints `c9cf57a feat: v1`.
 - Scene 6: pre-post the grant, the issue and the receipt blobs (each 30,000-byte blob op takes about 4 to 6 s and costs about 0.0027 tGLM), and pre-fund the agent, escrow and bank wallets, so the take only shows the claim, the fold and the payout.
 - Scene 6 on Rabdi: only claim it is live if that run completed uninterrupted; otherwise keep the "in-memory chain" caption.
-- Set `ARKIV_ACCESS_KEY` in the shell before recording but never echo it, and run `unset ARKIV_ACCESS_KEY` in any scene that does not need it (the tape does this already).
+- Never type or echo `ARKIV_ACCESS_KEY`; the tape sources it from a mode 600 file in a hidden step.
 - Never show: seed files, `$ARKIV_GIT_HOME/keys`, `$ARKIV_GIT_HOME/escrow/keys`, the access key, any `/Users/...` path.
-  Use `export PS1='$ '` and run from `/tmp/ag` as the tape does; check the shell history, window title and tab bar for the home directory.
+  Use `export PS1='$ '` and run from `/tmp/agl` as the tape does; check the shell history, window title and tab bar for the home directory.
 - Wallet addresses and the rid are public and fine to show; testnet only, say so in the close.
 - Keep the final cut at or under 3:00 and under 50 MB for the submission form; leave 1 s of silence at the end.
 
@@ -141,4 +141,4 @@ arkiv-git: git hosting with no host. Stock `git push arkiv::` and `git clone ark
 
 ## Tagline for the ETHGlobal form
 
-arkiv-git is decentralized git hosting on Arkiv: stock `git push` and `git clone` over `arkiv::` URLs, post-quantum signed refs, pinned Rhai repo programs and MLS private repos, with a keyless clone live on the Rabdi testnet. It also lets scoped AI agents claim bounties paid by an auditable escrow and gated by RISC Zero proofs, implemented and tested on an in-memory Arkiv.
+arkiv-git is decentralized git hosting on Arkiv: stock `git push` and `git clone` over `arkiv::` URLs, post-quantum signed refs, pinned Rhai repo programs and MLS private repos, with push, clone, branch protection and private repos shown live on the Rabdi testnet. It also lets scoped AI agents claim bounties paid by an auditable escrow and gated by RISC Zero proofs, implemented and tested on an in-memory Arkiv.
