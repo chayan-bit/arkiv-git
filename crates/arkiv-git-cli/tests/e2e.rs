@@ -129,7 +129,10 @@ fn a_contributor_push_is_fetched_through_its_peer_url() {
 
     alice.git(&work, &["fetch", "-q", &bob_url, "refs/heads/fix"]);
     assert_eq!(alice.git(&work, &["rev-parse", "FETCH_HEAD"]), fix);
-    alice.git(&work, &["merge", "-q", "--no-ff", "-m", "merge: fix", "FETCH_HEAD"]);
+    alice.git(
+        &work,
+        &["merge", "-q", "--no-ff", "-m", "merge: fix", "FETCH_HEAD"],
+    );
     alice.git(&work, &["push", "-q", &url, "main"]);
     let merge = alice.git(&work, &["rev-parse", "HEAD"]);
 
