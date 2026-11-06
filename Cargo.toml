@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
   "crates/arkiv-git-crypto",
+  "crates/arkiv-git-timelock",
   "crates/arkiv-git-core",
   "crates/arkiv-git-store",
   "crates/arkiv-git-sync",
