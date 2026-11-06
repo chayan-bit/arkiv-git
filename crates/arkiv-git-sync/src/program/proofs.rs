@@ -126,3 +126,30 @@ pub fn attach(ops: Vec<ProgramOp>, cache: &mut ProofCache) -> Vec<ProgramOp> {
         })
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use arkiv_git_core::{Body, CobOpBody, ZERO, max_body_len};
+
+    use super::*;
+
+    #[test]
+    fn a_full_blob_op_fits_one_signed_cob_entity() {
+        let payload = json!({ "data": hex::encode(vec![0xab; BLOB_CHUNK]) });
+        let body = CobOpBody {
+            rid: [1; 32],
+            type_name: BLOB_TYPE.into(),
+            object: ZERO,
+            parents: vec![],
+            action: "create".into(),
+            payload: crate::cob::json::to_cbor(&payload).expect("cbor"),
+            ts_ms: u64::MAX,
+        };
+        let cap = max_body_len(arkiv_git_crypto::SIG_LEN);
+        assert!(
+            body.encode().len() <= cap,
+            "{} > {cap}",
+            body.encode().len()
+        );
+    }
+}

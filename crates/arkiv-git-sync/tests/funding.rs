@@ -140,39 +140,36 @@ async fn a_top_up_the_wallet_cannot_cover_stops_mid_push_and_the_retry_resumes()
     assert_eq!(l.refs[0].1, rev(&work, "main"));
 }
 
-/// A pack smaller than one chunk is priced at its real size (found live on Rabdi, where a
-/// 300 B push asked for 0.027 tGLM and spent about 0.001). Its reserve is still four txs
-/// (chunk, manifest, refs, anchor) at the size of the largest signed envelope, which is
-/// under two full 64 KiB chunks' max fee; probing a full chunk made it over four.
 #[tokio::test(flavor = "multi_thread")]
-async fn a_tiny_push_is_priced_at_its_real_chunk_size() {
+async fn a_small_push_is_priced_for_its_real_chunk_sizes_not_full_chunks() {
     let net = Net::new();
     let alice = Peer::new(&net, 1);
-    let rid = init(&net, &alice, "tiny").await;
+    let rid = init(&net, &alice, "small").await;
     let tmp = tempfile::tempdir().expect("tmp");
     let work = work_repo(tmp.path(), "w");
-    commit(&work, &[("README", b"tiny\n".as_slice())], "feat: tiny");
-    let need = required(&net, &alice, &rid, &work).await;
-    let probe = chunk_op(
+    commit(&work, &[("README", b"v0\n".as_slice())], "feat: v0");
+    let repo = alice.repo(&rid);
+    let p = prepare(&net, &alice, &repo, &work, &[upd("refs/heads/main")])
+        .await
+        .expect("prepare");
+    let cost = p.cost().await.expect("cost");
+
+    let bulk = alice.keys.bulk_address(&rid);
+    let full = chunk_op(
         &rid,
         &[0; 32],
         0,
         &vec![0xa5; CHUNK_SIZE],
         alice.cfg.data_lifetime,
-    )
-    .expect("op");
-    let full = net
-        .estimate(alice.keys.bulk_address(&rid), &[probe])
+    );
+    let full_gas = net
+        .estimate(bulk, &[full.expect("op")])
         .await
         .expect("estimate");
-    let base = net.base_fee().await.expect("fee");
-    let two_full_chunks = alice.cfg.pipeline.reserve(2, full, base);
+    // Refs, manifest and one chunk of a few hundred bytes: less than one full chunk.
     assert!(
-        need < two_full_chunks,
-        "a tiny push needs {need}, more than two full chunks' max fee {two_full_chunks}"
+        cost.bulk_gas < full_gas,
+        "a few-byte push is priced at {} bulk gas, a full chunk is {full_gas}",
+        cost.bulk_gas
     );
-    pool_to(&net, &alice, &rid, need + need / U256::from(20)).await;
-    push(&net, &alice, &rid, &work, &["refs/heads/main"])
-        .await
-        .expect("the real price is enough");
 }

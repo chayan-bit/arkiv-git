@@ -118,19 +118,15 @@ impl<A: Arkiv> Push<'_, A> {
             bulk_gas += gas;
             txs += 1;
         }
-        // Each pack is full chunks plus one shorter tail; price every chunk at its real size.
-        let mut by_len: BTreeMap<usize, u64> = BTreeMap::new();
-        for s in self.pack_sizes()? {
-            let full = s / CHUNK_SIZE as u64;
-            if full > 0 {
-                *by_len.entry(CHUNK_SIZE).or_default() += full;
-            }
-            let tail = (s % CHUNK_SIZE as u64) as usize;
-            if tail > 0 {
-                *by_len.entry(tail).or_default() += 1;
-            }
+        // Count chunks by length: full chunks plus each pack's shorter tail, so a small
+        // push is priced and reserved for its real sizes, not for full 64 KiB chunks.
+        let mut lens: BTreeMap<usize, u64> = BTreeMap::new();
+        for size in self.pack_sizes()? {
+            let tail = (size % CHUNK_SIZE as u64) as usize;
+            *lens.entry(CHUNK_SIZE).or_default() += chunk_count(size) - u64::from(tail > 0);
+            *lens.entry(tail).or_default() += u64::from(tail > 0);
         }
-        for (len, count) in by_len {
+        for (len, chunks) in lens.into_iter().filter(|(l, n)| *l > 0 && *n > 0) {
             let probe = chunk_op(
                 &self.rid(),
                 &ZERO,
@@ -140,8 +136,8 @@ impl<A: Arkiv> Push<'_, A> {
             )?;
             let gas = write::estimate(self.a, bulk, &[probe]).await?;
             largest = largest.max(gas);
-            bulk_gas += count * gas;
-            txs += count;
+            bulk_gas += chunks * gas;
+            txs += chunks;
         }
         let base_fee = self.a.base_fee().await?;
         let pc = &self.cfg.pipeline;
