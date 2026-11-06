@@ -3,6 +3,7 @@
 pub mod backend;
 pub mod cmd;
 pub mod helper;
+pub mod program;
 pub mod units;
 
 use arkiv_git_core::ErrorCode;

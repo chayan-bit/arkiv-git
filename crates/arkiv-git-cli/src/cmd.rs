@@ -11,6 +11,7 @@ use arkiv_git_sync::state::State;
 use arkiv_git_sync::{Config, Keys, Repo};
 use clap::{Args, Parser, Subcommand};
 
+use crate::program::{self, ProgramCmd};
 use crate::units::{blocks, fmt_glm, glm};
 use crate::{CliError, Result, backend};
 
@@ -39,6 +40,9 @@ pub enum Cmd {
     Status { repo: String },
     /// Print the wallet address, its balance and an estimate of what a push needs.
     Fund(FundArgs),
+    /// Repo programs: pin one in the identity doc, or dry-run one locally.
+    #[command(subcommand)]
+    Program(ProgramCmd),
 }
 
 #[derive(Debug, Subcommand)]
@@ -169,6 +173,9 @@ fn print_identity(rid: &Rid, chain: &arkiv_git_core::IdentityChain) {
     println!("threshold:      {}", b.threshold);
     println!("lang:           {}", b.lang.as_deref().unwrap_or("-"));
     println!("license:        {}", b.license.as_deref().unwrap_or("-"));
+    if let Some(p) = &b.program {
+        println!("program:        {} {}", p.engine, hex32(&p.hash));
+    }
 }
 
 fn edit(args: &ProposeArgs) -> Result<impl FnOnce(&IdBody) -> IdBody + use<>> {
@@ -386,15 +393,38 @@ async fn init_cmd<A: Arkiv>(a: &A, cfg: &Config, i: &InitArgs) -> Result<()> {
     Ok(())
 }
 
+async fn pin_cmd<A: Arkiv>(a: &A, cfg: &Config, p: &program::PinArgs) -> Result<()> {
+    let (rid, keys, pin) = (
+        rid_of(&p.repo)?,
+        Keys::require(&cfg.home)?,
+        program::pin_for(&p.file)?,
+    );
+    let st = State::default();
+    let h = identity::propose(a, cfg, &keys, &rid, &st, |b: &IdBody| IdBody {
+        program: Some(pin),
+        ..b.clone()
+    })
+    .await?;
+    println!("proposed revision {}", hex32(&h));
+    print_identity(&rid, &identity::show(a, &rid, &st).await?);
+    Ok(())
+}
+
 /// Runs one parsed command.
 pub fn run(cli: &Cli) -> Result<()> {
-    if let Cmd::Keys(k) = &cli.cmd {
-        return keys_cmd(k);
+    match &cli.cmd {
+        Cmd::Keys(k) => return keys_cmd(k),
+        Cmd::Program(ProgramCmd::Check(c)) => {
+            println!("{}", program::outcome_json(&program::check(c)?)?);
+            return Ok(());
+        }
+        _ => {}
     }
     crate::block_on(async {
         let (a, cfg) = backend::connect().await?;
         match &cli.cmd {
-            Cmd::Keys(_) => Ok(()),
+            Cmd::Keys(_) | Cmd::Program(ProgramCmd::Check(_)) => Ok(()),
+            Cmd::Program(ProgramCmd::Pin(p)) => pin_cmd(&a, &cfg, p).await,
             Cmd::Init(i) => init_cmd(&a, &cfg, i).await,
             Cmd::Id(c) => id_cmd(&a, &cfg, c).await,
             Cmd::Keepalive(k) => keepalive_cmd(&a, &cfg, k).await,
