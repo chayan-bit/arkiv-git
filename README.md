@@ -71,6 +71,8 @@ As of this commit none of the following is merged; each lives on its own branch 
   Keepalive does not extend `cob` entities yet and there is no completeness check for them.
 - `feat/repo-programs` and `feat/programs-wired`: a deterministic Rhai repo-program engine pinned by hash in the identity document, with four demo templates (branch protection, CI-attested, bounty, sealed patch) and, on the second branch, enforcement of the pinned program on fetch.
   The programs compute what is owed; settlement is not part of it.
+- AI agents: `programs/agent-bounty.rhai` lets a delegate grant an agent key bounded authority (scopes, a bounty cap, an expiry) with a signed op, enforced by the pinned program on every client and revoked by another op, with no protocol change.
+  An agent can claim bounties but never counts as a delegate or approver; see `docs/p3/agents.md`.
 - `feat/timelock`: timelock seal and open (`arkiv-git timelock seal`, `arkiv-git timelock open`) using drand quicknet.
 - `feat/private-repos`: private repos with MLS X-Wing groups and sealed entities that store only ciphertext; work in progress.
 - `feat/escrow`: early work on top of the collaborative-object branch.
