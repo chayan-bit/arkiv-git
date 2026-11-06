@@ -22,12 +22,9 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use arkiv_git_core::{AnchorBody, Kind, Observed, RefsBody, Rid, chunk_count};
-use arkiv_git_store::{
-    Address, Arkiv, B256, Operation, PipelineConfig, Query, QueryOpts, QueryPage, Receipt,
-    RpcArkiv, SignedTx, StoreError, TxHash, TxInfo, U256,
-};
+use arkiv_git_store::{Address, Arkiv, B256, Operation, PipelineConfig, RpcArkiv, U256};
+use arkiv_git_sync::Keys;
 use arkiv_git_sync::write::{chunk_op, entity_op};
-use arkiv_git_sync::{Keys, observe};
 use common::live::*;
 
 const CAP_WEI: u128 = 600_000_000_000_000_000; // 0.6 tGLM net spend
@@ -388,25 +385,10 @@ fn measured_push(
     );
 }
 
-/// Live entities of `kind` carrying `ag.rid = rid`, in creation order.
-fn entities(rpc: &RpcArkiv, rid: &Rid, kind: Kind) -> Vec<Observed> {
-    let f = arkiv_git_store::Pred::And(vec![observe::kind(kind), observe::b32("ag.rid", rid)]);
-    arkiv_git_cli::block_on(observe::all(rpc, f))
-        .expect("rt")
-        .expect("query")
-}
-
 fn body_of(o: &Observed) -> Vec<u8> {
     match o.attr("ag.body") {
         Some(arkiv_git_core::AttrValue::Bytes(b)) => b.clone(),
         other => panic!("no body: {other:?}"),
-    }
-}
-
-fn seq_of(o: &Observed) -> u64 {
-    match o.attr("ag.seq") {
-        Some(arkiv_git_core::AttrValue::U64(s)) => *s,
-        other => panic!("no seq: {other:?}"),
     }
 }
 
@@ -425,65 +407,4 @@ fn send_ops(
         }
     });
     sent.expect("rt").expect("send");
-}
-
-/// The local proxy of design 8.5 step 4: Rabdi with one entity withheld from every query
-/// and `entityNonce` of `control` lowered to match.
-struct Hiding<'a> {
-    inner: &'a RpcArkiv,
-    key: B256,
-    control: Address,
-    nonce: u64,
-}
-
-impl Arkiv for Hiding<'_> {
-    async fn chain_id(&self) -> Result<u64, StoreError> {
-        self.inner.chain_id().await
-    }
-    async fn head(&self) -> Result<u64, StoreError> {
-        self.inner.head().await
-    }
-    async fn base_fee(&self) -> Result<u128, StoreError> {
-        self.inner.base_fee().await
-    }
-    async fn query(&self, q: &Query, o: &QueryOpts) -> Result<QueryPage, StoreError> {
-        let mut page = self.inner.query(q, o).await?;
-        page.rows.retain(|r| r.key != Some(self.key));
-        if let Some(c) = page.count.as_mut() {
-            // A count-only page has no rows, so probe the keys to see if the hidden one counts.
-            // shortcut: probes the first 100 matches only, enough for one repo's control set.
-            let keys = self.inner.query(q, &QueryOpts::default()).await?;
-            if keys.rows.iter().any(|r| r.key == Some(self.key)) {
-                *c -= 1;
-            }
-        }
-        Ok(page)
-    }
-    async fn entity_nonce(&self, c: Address) -> Result<u64, StoreError> {
-        match c == self.control {
-            true => Ok(self.nonce),
-            false => self.inner.entity_nonce(c).await,
-        }
-    }
-    async fn balance(&self, a: Address) -> Result<U256, StoreError> {
-        self.inner.balance(a).await
-    }
-    async fn tx_count(&self, a: Address) -> Result<u64, StoreError> {
-        self.inner.tx_count(a).await
-    }
-    async fn tx_count_mined(&self, a: Address) -> Result<u64, StoreError> {
-        self.inner.tx_count_mined(a).await
-    }
-    async fn transaction(&self, h: TxHash) -> Result<Option<TxInfo>, StoreError> {
-        self.inner.transaction(h).await
-    }
-    async fn estimate(&self, from: Address, ops: &[Operation]) -> Result<u64, StoreError> {
-        self.inner.estimate(from, ops).await
-    }
-    async fn send(&self, tx: SignedTx) -> Result<TxHash, StoreError> {
-        self.inner.send(tx).await
-    }
-    async fn receipt(&self, h: TxHash) -> Result<Option<Receipt>, StoreError> {
-        self.inner.receipt(h).await
-    }
 }
