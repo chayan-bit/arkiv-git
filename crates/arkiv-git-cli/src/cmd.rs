@@ -442,7 +442,9 @@ pub fn run(cli: &Cli) -> Result<()> {
         match &cli.cmd {
             Cmd::Keys(_) | Cmd::Timelock(_) | Cmd::Program(ProgramCmd::Check(_)) => Ok(()),
             Cmd::Program(ProgramCmd::Pin(p)) => pin_cmd(&a, &cfg, p).await,
-            Cmd::Program(ProgramCmd::Status { repo }) => program::status(&a, &rid_of(repo)?).await,
+            Cmd::Program(ProgramCmd::Status { repo }) => {
+                program::status(&a, &cfg, &rid_of(repo)?).await
+            }
             Cmd::Init(i) => init_cmd(&a, &cfg, i).await,
             Cmd::Id(c) => id_cmd(&a, &cfg, c).await,
             Cmd::Keepalive(k) => keepalive_cmd(&a, &cfg, k).await,

@@ -6,8 +6,7 @@ use arkiv_git_core::{ProgramPin, Rid};
 use arkiv_git_program::{ENGINE_RHAI_V1, Event, Outcome, Program, RepoInfo};
 use arkiv_git_store::Arkiv;
 use arkiv_git_sync::ids::to_text;
-use arkiv_git_sync::state::State;
-use arkiv_git_sync::view::{self, Want};
+use arkiv_git_sync::{Config, Repo, Want, sync};
 use clap::{Args, Subcommand};
 use serde::Deserialize;
 
@@ -64,11 +63,12 @@ pub fn pin_for(path: &Path) -> Result<(ProgramPin, String)> {
     Ok((pin, src))
 }
 
-/// `program status`: the enforced fold of the repo's pinned program.
-pub async fn status<A: Arkiv>(a: &A, rid: &Rid) -> Result<()> {
-    let st = State::default();
-    let view = view::build(a, rid, &st, &Want::default()).await?;
-    let Some(e) = arkiv_git_sync::program::enforce(a, &view).await? else {
+/// `program status`: the enforced fold of the repo's pinned program. It fetches into the
+/// local cache first, because fast-forwards are decided by git ancestry.
+pub async fn status<A: Arkiv>(a: &A, cfg: &Config, rid: &Rid) -> Result<()> {
+    let repo = Repo::open(&cfg.home, rid)?;
+    let view = sync(a, &repo, &Want::default()).await?;
+    let Some(e) = &view.program else {
         println!("no program pinned");
         return Ok(());
     };

@@ -14,12 +14,13 @@ use arkiv_git_program::{Event, Outcome, Program, ProgramOp, RefUpdate, RepoInfo}
 use arkiv_git_store::{Arkiv, Pred};
 use serde_json::{Value, json};
 
+use crate::git::Git;
 use crate::keys::Keys;
 use crate::observe::{all, b32, by_hashes, kind};
-use crate::repo::Config;
-use crate::state::{PendingPush, State, unhex};
-use crate::view::{self, View, Want};
-use crate::{Result, SyncError, cob};
+use crate::repo::{Config, Repo};
+use crate::state::{PendingPush, unhex};
+use crate::view::{View, Want};
+use crate::{Result, SyncError, cob, fetch};
 
 /// COB type of program source ops.
 pub const PROGRAM_TYPE: &str = "xyz.arkiv.program";
@@ -43,22 +44,38 @@ fn missing(msg: impl Into<String>) -> SyncError {
     SyncError::coded(ErrorCode::ProgramMissing, msg)
 }
 
-fn fold(e: &Enforced, extra: Vec<RefUpdate>) -> Result<Outcome> {
+fn fold(e: &Enforced, extra: Vec<RefUpdate>, git: &Git) -> Result<Outcome> {
     let events = e
         .events
         .iter()
         .cloned()
         .chain(extra.into_iter().map(Event::Push));
+    let ancestry = |a: &[u8], b: &[u8]| is_ancestor(git, a, b);
     e.program
-        .fold_from(e.repo.clone(), e.seed.clone(), events)
+        .fold_with(e.repo.clone(), e.seed.clone(), events, &ancestry)
         .map_err(|err| missing(format!("program fold failed: {err}")))
+}
+
+/// Git ancestry of commit `a` to commit `b` in `git`, or `None` if either is missing.
+pub fn is_ancestor(git: &Git, a: &[u8], b: &[u8]) -> Option<bool> {
+    let (a, b) = (hex::encode(a), hex::encode(b));
+    let has = |o: &str| {
+        git.run(&["cat-file", "-e", &format!("{o}^{{commit}}")], b"")
+            .is_ok()
+    };
+    if !has(&a) || !has(&b) {
+        return None;
+    }
+    // Exit 1 (no common ancestor) is a plain "not an ancestor".
+    let base = git.run(&["merge-base", &a, &b], b"").unwrap_or_default();
+    Some(String::from_utf8_lossy(&base).trim() == a)
 }
 
 impl Enforced {
     /// Folds again with `updates` appended after everything on chain; the first of them the
     /// program rejects is `E_PROGRAM_REJECTED` with the program's reason.
-    pub fn check(&self, updates: Vec<RefUpdate>) -> Result<()> {
-        let o = fold(self, updates)?;
+    pub fn check(&self, updates: Vec<RefUpdate>, git: &Git) -> Result<()> {
+        let o = fold(self, updates, git)?;
         match o
             .rejected
             .iter()
@@ -208,7 +225,8 @@ fn kind_is(o: &arkiv_git_core::Observed, k: Kind) -> bool {
 
 /// Folds the pinned program of `view`, or `None` when the identity pins none. A missing or
 /// mismatched source is `E_PROGRAM_MISSING`: heads are never computed without the program.
-pub async fn enforce<A: Arkiv>(a: &A, view: &View) -> Result<Option<Enforced>> {
+/// `git` holds the pushed objects (fetch calls this after applying packs) for ancestry.
+pub async fn enforce<A: Arkiv>(a: &A, view: &View, git: &Git) -> Result<Option<Enforced>> {
     let head = view.identity.head();
     let Some(pin) = head.body.program.clone() else {
         return Ok(None);
@@ -257,13 +275,13 @@ pub async fn enforce<A: Arkiv>(a: &A, view: &View) -> Result<Option<Enforced>> {
             heads: BTreeMap::new(),
         },
     };
-    e.outcome = fold(&e, vec![])?;
+    e.outcome = fold(&e, vec![], git)?;
     Ok(Some(e))
 }
 
 /// Refuses `pending` with `E_PROGRAM_REJECTED` if `view` enforces a program, `nid` is a
 /// delegate, and the program rejects one of the ref moves the push signs.
-pub fn check_push(view: &View, nid: &Nid, pending: &PendingPush) -> Result<()> {
+pub fn check_push(view: &View, nid: &Nid, pending: &PendingPush, git: &Git) -> Result<()> {
     let Some(e) = &view.program else {
         return Ok(());
     };
@@ -276,7 +294,7 @@ pub fn check_push(view: &View, nid: &Nid, pending: &PendingPush) -> Result<()> {
         .get(nid)
         .and_then(|p| p.head.as_ref())
         .map(|h| &h.refs);
-    e.check(ref_updates(*nid, old, &new, PENDING_ORDER))
+    e.check(ref_updates(*nid, old, &new, PENDING_ORDER), git)
 }
 
 fn now_ms() -> u64 {
@@ -315,11 +333,17 @@ pub async fn publish<A: Arkiv>(
     cob::post(a, cfg, keys, &op(object, PUBLISH, &payload)?).await
 }
 
-/// Obligations of the pinned program of `rid` (empty without a pin); the escrow hook.
+/// Obligations of the pinned program of `rid` (empty without a pin); the escrow hook. It
+/// fetches into the cache under [`Config::default_home`], since fast-forwards need objects.
 pub async fn obligations<A: Arkiv>(a: &A, rid: &Rid) -> Result<Vec<Value>> {
-    let view = view::build(a, rid, &State::default(), &Want::default()).await?;
-    Ok(enforce(a, &view)
-        .await?
+    obligations_in(a, &Repo::open(&Config::default_home(), rid)?).await
+}
+
+/// [`obligations`] with an explicit repo cache.
+pub async fn obligations_in<A: Arkiv>(a: &A, repo: &Repo) -> Result<Vec<Value>> {
+    let view = fetch::sync(a, repo, &Want::default()).await?;
+    Ok(view
+        .program
         .map(|e| e.outcome.obligations)
         .unwrap_or_default())
 }

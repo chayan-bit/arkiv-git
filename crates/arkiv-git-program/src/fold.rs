@@ -9,12 +9,13 @@ use rhai::{Array, Dynamic};
 
 use crate::engine::Runtime;
 use crate::value::{op_map, push_map, repo_map};
-use crate::{Event, Outcome, Program, ProgramError, ProgramOp, RefUpdate, RepoInfo};
+use crate::{Ancestry, Event, Outcome, Program, ProgramError, ProgramOp, RefUpdate, RepoInfo};
 
 pub(crate) const NOT_FF: &str = "not a fast-forward of the accepted head";
 
 struct Folder<'a> {
     prog: &'a Program,
+    ancestry: Ancestry<'a>,
     rt: Runtime,
     state: Dynamic,
     heads: BTreeMap<String, Vec<u8>>,
@@ -27,6 +28,7 @@ pub(crate) fn run(
     repo: &RepoInfo,
     seed: BTreeMap<String, Vec<u8>>,
     events: impl IntoIterator<Item = Event>,
+    ancestry: Ancestry<'_>,
 ) -> Result<Outcome, ProgramError> {
     let rt = Runtime::new();
     let state = repo_map(repo)
@@ -34,6 +36,7 @@ pub(crate) fn run(
         .map_err(ProgramError::Init)?;
     let mut f = Folder {
         prog,
+        ancestry,
         rt,
         state,
         heads: seed,
@@ -72,11 +75,15 @@ impl Folder<'_> {
         }
     }
 
-    fn push(&mut self, p: RefUpdate) {
-        let ff = match self.heads.get(&p.name) {
-            Some(head) => *head == p.old,
-            None => p.old.is_empty(),
-        };
+    fn push(&mut self, mut p: RefUpdate) {
+        // `old` becomes the accepted head; `ff` is real git ancestry from it to `new` when
+        // the client has the objects, else whether the pusher's claimed `old` matches it.
+        let head = self.heads.get(&p.name).cloned().unwrap_or_default();
+        let ff = head.is_empty()
+            || p.new.is_empty()
+            || head == p.new
+            || (self.ancestry)(&head, &p.new).unwrap_or(head == p.old);
+        p.old = head;
         let verdict = match self.prog.abi.check_push {
             true => self
                 .call("check_push", push_map(&p, ff))

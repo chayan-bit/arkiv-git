@@ -18,11 +18,12 @@ use crate::{Result, SyncError, packs, warn};
 pub async fn sync<A: Arkiv>(a: &A, repo: &Repo, want: &Want) -> Result<View> {
     let mut state = State::load(&repo.state_path())?;
     let mut view = view::build(a, &repo.rid, &state, want).await?;
-    view.program = crate::program::enforce(a, &view).await?;
     warn_expiry(&view);
     let must: BTreeSet<Nid> = view.delegates().iter().chain(&want.must).copied().collect();
     let applied = apply_all(a, repo, &mut view, &state, &must).await?;
     check_connected(repo, &mut view, &must)?;
+    // After the packs are in the cache, so the program sees real git ancestry.
+    view.program = crate::program::enforce(a, &view, repo.git()).await?;
     commit(repo, &view, &mut state, applied)?;
     Ok(view)
 }

@@ -59,9 +59,10 @@ An error, including running out of operations or a payload that does not convert
 ### `fn check_push(state, push)` (optional)
 
 `push` is `#{ author, ref, old, head, order, ff }`.
-`old` is the hex oid the pusher says it replaces, or `""` for a new ref.
+`old` is the hex oid of the last accepted head of that ref, or `""` if the program has accepted none.
 `head` is the new oid; Rhai reserves the word `new`, so the key is `head` even though the Rust and JSON field is `new`.
-`ff` is true when `old` equals the last accepted head of that ref, or when both are absent.
+`ff` is true when the ref has no accepted head, when `head` is empty (a delete) or equals the accepted head, or when the accepted head is a git ancestor of `head`.
+Ancestry comes from a host callback (`Program::fold_with`); when the host cannot tell (objects missing, or `fold` and `fold_from`, which pass no callback), `ff` falls back to whether the pusher's claimed `old` equals the accepted head.
 It returns `()` to allow a fast-forward, `true` to allow the push even if it is not a fast-forward, `false` or a string to reject, where the string is the reason.
 An error, including running out of operations, rejects the push (fail closed).
 Without `check_push` every fast-forward is allowed.
@@ -82,8 +83,8 @@ Obligations are claims the program computes; whether they were met on chain is c
 Events are ops and ref updates interleaved in Arkiv order; an event with a smaller order than the one before it fails the fold.
 The engine keeps the last accepted head per ref.
 A rejected push does not move that head, so later pushes on the ref are checked against the last accepted one.
-A push whose `old` is not the last accepted head is rejected with `not a fast-forward of the accepted head`, unless `check_push` returns `true`.
-"Fast-forward" here means `old` matches the accepted head; the engine does not walk git ancestry.
+A push that is not a fast-forward (see `ff`) is rejected with `not a fast-forward of the accepted head`, unless `check_push` returns `true`.
+Accepted and rejected pushes in the outcome carry the accepted head as `old`, not the pusher's claim.
 A push with an empty `new` deletes the accepted head of that ref.
 The outcome holds `state_json`, the accepted and rejected pushes (with reasons), the obligations and the log lines.
 
@@ -96,7 +97,7 @@ The sync crate (`crates/arkiv-git-sync/src/program.rs`) builds the fold input fr
 
 Ops are the verified COB ops of the repo, converted to `ProgramOp`.
 Ref updates come from the verified anchor chains of the delegates of the current identity head, the same peers whose refs vote under P1.
-Each anchor after the first contributes one `RefUpdate` per ref whose oid differs from that delegate's previous signed refs: `old` is the previous oid (empty for a new ref) and `new` the signed one (empty for a deleted ref).
+Each anchor after the first contributes one `RefUpdate` per ref whose oid differs from that delegate's previous signed refs: `old` is the previous oid (empty for a new ref) and `new` the signed one (empty for a deleted ref); the fold then replaces `old` with its accepted head.
 Pushes by non-delegates are not events, as under P1 they never become canonical.
 Ops, anchors and identity entities are read in one creation-ordered query, so their ranks in that result give one Arkiv order for all events.
 The ranks differ between clients only by entities that expired or were created later, never in relative order, so every client folds the same sequence.
@@ -135,8 +136,9 @@ A rejected push still advances its author's anchor chain and mark; the next push
 
 ### Known limits
 
-`old` is the pusher's own previous oid, so a delegate whose push was rejected keeps the rejected oid as `old` for that ref, and its later pushes of that ref are not fast-forwards of the accepted head unless `check_push` returns `true`.
-When several delegates push the same accepted head, the second push is not a fast-forward and shows as a harmless rejection.
+`ff` uses git ancestry in the local cache: fetch decides it after applying every delegate's packs, `program status` and `obligations` fetch first, and the helper checks after staging the push, so all of them have the objects.
+A delegate whose push was rejected is therefore not stuck: its next push of a descendant of the accepted head is a fast-forward, whatever its own refs held.
+A client that lacks an object falls back to comparing the pusher's previous oid with the accepted head, which can disagree with clients that have it; P1's connectivity check makes this a corner case.
 Every client re-folds the whole history on each fetch; there is no cached state.
 
 ## Rust API

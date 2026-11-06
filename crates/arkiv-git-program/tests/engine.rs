@@ -162,9 +162,12 @@ fn default_rule_is_fast_forward_of_accepted_head() {
 fn check_push_true_overrides_fast_forward_and_string_rejects() {
     let src = r#"fn init(r) { 0 }
 fn check_push(s, p) { if p.ref == "refs/heads/force" { true } else if !p.ff { () } else { "nope" } }"#;
+    // `y` has an accepted head (2), so a push claiming `old` 7 is not a fast-forward.
+    let seed = std::collections::BTreeMap::from([("refs/heads/y".to_owned(), oid(2))]);
     let o = load(src)
-        .fold(
+        .fold_from(
             repo(),
+            seed,
             [
                 push(1, 1, "refs/heads/force", Some(7), 1),
                 push(2, 1, "refs/heads/x", None, 1),
@@ -234,4 +237,18 @@ fn fold_from_seeds_the_accepted_heads() {
         "a new-ref push onto a seeded ref is not ff"
     );
     assert_eq!(o.heads["refs/heads/main"], oid(2));
+}
+
+#[test]
+fn ancestry_decides_ff_and_old_is_the_accepted_head() {
+    let p = load("fn init(repo) { #{} }");
+    let seed = std::collections::BTreeMap::from([("refs/heads/main".to_owned(), oid(1))]);
+    // 1 -> 2 -> 3 is the history; 9 is unrelated.
+    let ancestry = |a: &[u8], b: &[u8]| Some(a[0] <= b[0] && b[0] != 9);
+    let events = [main(1, Some(8), 2), main(2, Some(1), 9), main(3, None, 3)];
+    let o = p.fold_with(repo(), seed, events, &ancestry).expect("fold");
+    assert_eq!(o.accepted.len(), 2, "a stale claimed old does not matter");
+    assert_eq!(o.accepted[0].old, oid(1), "old is the accepted head");
+    assert_eq!(o.rejected[0].1, "not a fast-forward of the accepted head");
+    assert_eq!(o.heads["refs/heads/main"], oid(3));
 }

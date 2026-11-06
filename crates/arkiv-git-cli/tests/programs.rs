@@ -175,6 +175,30 @@ fn branch_protection_is_enforced_on_push_and_clone() {
         report.contains(&format!("head: refs/heads/main {c1}")),
         "{report}"
     );
+
+    // The rejected delegate is not stuck: `old` is the accepted head and `ff` is real git
+    // ancestry, so an approved descendant of c1 (built on the rejected c2) is accepted.
+    let c3 = commit(&alice, &work, "v3\n");
+    let patch3 = post(
+        &bob,
+        &url,
+        "xyz.arkiv.patch",
+        "create",
+        None,
+        &format!(r#"{{"title":"v3","head":"{c3}"}}"#),
+    );
+    let approve3 = format!(r#"{{"patch":"{patch3}","head":"{c3}"}}"#);
+    post(
+        &alice,
+        &url,
+        "xyz.arkiv.review",
+        "approve",
+        Some(&review),
+        &approve3,
+    );
+    alice.git(&work, &["push", "-q", &url, "main"]);
+    let erin = User::new(root, "erin", &log);
+    assert_eq!(clone_head(&erin, root, &url, "erin"), c3);
 }
 
 #[test]
@@ -240,7 +264,8 @@ fn bounty_obligation_appears_after_the_merge() {
         .rid;
     let obligations = arkiv_git_cli::block_on(async {
         let mem = FileMemArkiv::open(&log, MEM_CHAIN_ID).expect("open");
-        arkiv_git_sync::program::obligations(&mem, &rid).await
+        let repo = Repo::open(&root.join("escrow"), &rid).expect("repo");
+        arkiv_git_sync::program::obligations_in(&mem, &repo).await
     })
     .expect("runtime")
     .expect("obligations");

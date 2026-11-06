@@ -11,6 +11,10 @@ use serde::{Deserialize, Serialize};
 
 pub use value::cbor_from_json;
 
+/// `ancestry(a, b)`: `Some(true)` if commit `a` is an ancestor of (or equal to) commit `b`,
+/// `Some(false)` if not, `None` if the caller cannot tell (objects missing).
+pub type Ancestry<'a> = &'a dyn Fn(&[u8], &[u8]) -> Option<bool>;
+
 /// The only engine tag this build runs.
 pub const ENGINE_RHAI_V1: &str = "rhai/1";
 /// Tag of `H(tag, source)` for program pins.
@@ -160,7 +164,7 @@ impl Program {
         repo: RepoInfo,
         events: impl IntoIterator<Item = Event>,
     ) -> Result<Outcome, ProgramError> {
-        fold::run(self, &repo, BTreeMap::new(), events)
+        fold::run(self, &repo, BTreeMap::new(), events, &|_, _| None)
     }
 
     /// Like [`Program::fold`], but the accepted heads start at `seed` (ref name to oid)
@@ -171,6 +175,18 @@ impl Program {
         seed: BTreeMap<String, Vec<u8>>,
         events: impl IntoIterator<Item = Event>,
     ) -> Result<Outcome, ProgramError> {
-        fold::run(self, &repo, seed, events)
+        fold::run(self, &repo, seed, events, &|_, _| None)
+    }
+
+    /// Like [`Program::fold_from`], with `ff` decided by `ancestry` (git ancestry of the
+    /// accepted head and the new oid) whenever it can tell.
+    pub fn fold_with(
+        &self,
+        repo: RepoInfo,
+        seed: BTreeMap<String, Vec<u8>>,
+        events: impl IntoIterator<Item = Event>,
+        ancestry: Ancestry<'_>,
+    ) -> Result<Outcome, ProgramError> {
+        fold::run(self, &repo, seed, events, ancestry)
     }
 }
