@@ -1,7 +1,8 @@
 //! A scoped AI agent works a bounty end to end on MemArkiv (docs/p3/agents.md): alice
 //! grants an agent key `patch` scope with a cap under `agent-bounty.rhai`; the agent polls
 //! `op list --json`, claims the open bounty, pushes its commit and posts a patch carrying
-//! the committed real proof; alice approves and merges; the escrow pays the agent.
+//! the committed real proof with `op attach-proof`; alice approves and merges; the escrow
+//! pays the agent.
 
 mod common;
 
@@ -11,21 +12,18 @@ use arkiv_git_cli::backend::MEM_CHAIN_ID;
 use arkiv_git_store::fake::FileMemArkiv;
 use arkiv_git_store::{Address, U256};
 use arkiv_git_sync::ids::parse_id;
-use arkiv_git_sync::program::proofs::{BLOB_CHUNK, BLOB_TYPE};
 use common::e2e::*;
 use common::programs::*;
 use serde_json::{Value, json};
 
 const TGLM: u128 = 1_000_000_000_000_000_000;
-const RECEIPT: &[u8] = include_bytes!("../../arkiv-git-zk/tests/fixtures/demo.receipt");
-const PUBLIC: &str = include_str!("../../arkiv-git-zk/tests/fixtures/demo.public.json");
+const FIXTURES: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../arkiv-git-zk/tests/fixtures"
+);
 
 fn first_word<'a>(out: &'a str, key: &str) -> &'a str {
     field(out, key).split_whitespace().next().unwrap_or("")
-}
-
-fn sha(b: &[u8]) -> String {
-    hex::encode(arkiv_git_zk_core::sha256(b))
 }
 
 /// An appointed, funded escrow for `url`.
@@ -49,20 +47,6 @@ fn escrow(root: &Path, log: &Path, alice: &User, url: &str) -> User {
     ];
     alice.arkiv(&appoint);
     esc
-}
-
-/// Posts the receipt as blob ops and returns the proof entry that references them.
-fn attach_proof(ai: &User, url: &str) -> Value {
-    let chunks: Vec<String> = RECEIPT
-        .chunks(BLOB_CHUNK)
-        .map(|c| {
-            let data = json!({"data": hex::encode(c)}).to_string();
-            post(ai, url, BLOB_TYPE, "create", None, &data);
-            sha(c)
-        })
-        .collect();
-    let public: Value = serde_json::from_str(PUBLIC).expect("fixture");
-    json!({"kind": "risc0", "receipt": sha(RECEIPT), "chunks": chunks, "public": public})
 }
 
 fn ops(u: &User, url: &str) -> Vec<Value> {
@@ -98,16 +82,28 @@ fn agent_round(ai: &User, url: &str, work: &Path) -> Option<(String, String, Str
         work,
         &["push", "-q", url, &format!("HEAD:refs/heads/{branch}")],
     );
-    let proof = attach_proof(ai, url);
-    let payload = json!({"title": "agent fix", "head": head, "issue": issue, "proofs": [proof]});
-    let patch = post(
-        ai,
-        url,
-        "xyz.arkiv.patch",
-        "create",
-        None,
-        &payload.to_string(),
+    let payload = json!({"title": "agent fix", "head": head, "issue": issue}).to_string();
+    let (receipt, public) = (
+        format!("{FIXTURES}/demo.receipt"),
+        format!("{FIXTURES}/demo.public.json"),
     );
+    let attach = [
+        "op",
+        "attach-proof",
+        "--repo",
+        url,
+        "--type",
+        "xyz.arkiv.patch",
+        "--action",
+        "create",
+        "--payload-json",
+        &payload,
+        "--receipt",
+        &receipt,
+        "--public",
+        &public,
+    ];
+    let patch = ai.arkiv(&attach).trim().to_owned();
     Some((issue, patch, branch))
 }
 
