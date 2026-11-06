@@ -151,9 +151,11 @@ impl<'a, A: Arkiv> Session<'a, A> {
         }
         let cost = p.cost().await?;
         eprintln!(
-            "arkiv-git: dry run: about {} gas, {} tGLM at 2x base fee; nothing sent",
+            "arkiv-git: dry run: about {} gas, {} tGLM at the current base fee, {} tGLM \
+             needed up front with the in-flight reserve; nothing sent",
             cost.control_gas + cost.bulk_gas,
-            crate::units::fmt_glm(cost.wei())
+            crate::units::fmt_glm(cost.spend),
+            crate::units::fmt_glm(cost.required())
         );
         if !resumed {
             p.discard(&p.pending);

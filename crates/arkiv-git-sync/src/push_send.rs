@@ -37,11 +37,16 @@ pub struct Cost {
     pub control_gas: u64,
     pub bulk_gas: u64,
     pub base_fee: u128,
+    /// Predicted spend: all estimated gas at the current base fee plus the tip.
+    pub spend: U256,
+    /// Max-fee reserve of one window of in-flight txs of the largest predicted size.
+    pub reserve: U256,
 }
 
 impl Cost {
-    pub fn wei(&self) -> U256 {
-        write::price(self.control_gas + self.bulk_gas, self.base_fee)
+    /// What the wallet and the repo addresses must hold before the push starts.
+    pub fn required(&self) -> U256 {
+        self.spend + self.reserve
     }
 }
 
@@ -87,6 +92,8 @@ impl<A: Arkiv> Push<'_, A> {
         for op in control_ops {
             control_gas += write::estimate(self.a, control, &[op]).await?;
         }
+        // The first write goes as one tx, so the control total bounds the largest tx.
+        let mut largest = control_gas;
         let mut bulk_gas = write::estimate(
             self.a,
             bulk,
@@ -96,13 +103,16 @@ impl<A: Arkiv> Push<'_, A> {
             )?],
         )
         .await?;
+        largest = largest.max(bulk_gas);
         for m in self.manifests()? {
-            bulk_gas += write::estimate(
+            let gas = write::estimate(
                 self.a,
                 bulk,
                 &[entity_op::<ManifestBody>(&m, self.cfg.data_lifetime)?],
             )
             .await?;
+            largest = largest.max(gas);
+            bulk_gas += gas;
         }
         let chunks: u64 = self.pack_sizes()?.iter().map(|s| chunk_count(*s)).sum();
         if chunks > 0 {
@@ -113,13 +123,18 @@ impl<A: Arkiv> Push<'_, A> {
                 &vec![0xa5; CHUNK_SIZE],
                 self.cfg.data_lifetime,
             )?;
-            bulk_gas += chunks * write::estimate(self.a, bulk, &[probe]).await?;
+            let gas = write::estimate(self.a, bulk, &[probe]).await?;
+            largest = largest.max(gas);
+            bulk_gas += chunks * gas;
         }
         let base_fee = self.a.base_fee().await?;
+        let pc = &self.cfg.pipeline;
         Ok(Cost {
             control_gas,
             bulk_gas,
             base_fee,
+            spend: U256::from(control_gas + bulk_gas) * U256::from(base_fee + pc.tip),
+            reserve: pc.window_reserve(largest, base_fee),
         })
     }
 
@@ -136,28 +151,37 @@ impl<A: Arkiv> Push<'_, A> {
             .collect()
     }
 
+    /// Step 6: the one up-front check; the sends then top up per window from the wallet.
     async fn fund(&self) -> Result<()> {
         let c = self.cost().await?;
-        let wallet = self.keys.wallet();
-        let pc = &self.cfg.pipeline;
-        let control = self.keys.control_address(&self.rid());
-        let bulk = self.keys.bulk_address(&self.rid());
-        write::ensure_funds(
+        let spenders = [
+            self.keys.control_address(&self.rid()),
+            self.keys.bulk_address(&self.rid()),
+        ];
+        write::check_funds(
             self.a,
-            &wallet,
-            control,
-            write::price(c.control_gas, c.base_fee),
-            pc,
-        )
-        .await?;
-        write::ensure_funds(
-            self.a,
-            &wallet,
-            bulk,
-            write::price(c.bulk_gas, c.base_fee),
-            pc,
+            self.keys.wallet().address(),
+            &spenders,
+            c.required(),
         )
         .await
+    }
+
+    /// Sends `jobs` from `signer`, topped up from the wallet per window.
+    async fn send_from(
+        &self,
+        signer: &alloy_signer_local::PrivateKeySigner,
+        jobs: Vec<Vec<Operation>>,
+    ) -> Result<()> {
+        write::send_funded(
+            self.a,
+            signer,
+            &self.keys.wallet(),
+            &self.cfg.pipeline,
+            jobs,
+        )
+        .await?;
+        Ok(())
     }
 
     /// Steps 6-11: fund, first write, chunks, manifests, refs.
@@ -165,13 +189,8 @@ impl<A: Arkiv> Push<'_, A> {
         self.fund().await?;
         if !self.has_bind() {
             let ops = self.first_write_ops()?;
-            write::send(
-                self.a,
-                &self.keys.control(&self.rid()),
-                &self.cfg.pipeline,
-                vec![ops],
-            )
-            .await?;
+            self.send_from(&self.keys.control(&self.rid()), vec![ops])
+                .await?;
         }
         for pk in &self.pending.packs {
             self.upload_pack(pk).await?;
@@ -237,7 +256,7 @@ impl<A: Arkiv> Push<'_, A> {
                     self.cfg.data_lifetime,
                 )?]);
             }
-            write::send(self.a, &signer, &self.cfg.pipeline, jobs).await?;
+            self.send_from(&signer, jobs).await?;
             done += batch.len();
             if idx.len() > batch.len() {
                 eprintln!(
@@ -265,14 +284,7 @@ impl<A: Arkiv> Push<'_, A> {
                 jobs.push(vec![entity_op::<B>(bytes, self.cfg.data_lifetime)?]);
             }
         }
-        write::send(
-            self.a,
-            &self.keys.bulk(&self.rid()),
-            &self.cfg.pipeline,
-            jobs,
-        )
-        .await?;
-        Ok(())
+        self.send_from(&self.keys.bulk(&self.rid()), jobs).await
     }
 
     async fn own_head(&self) -> Result<Option<Hash32>> {
@@ -341,14 +353,8 @@ impl<A: Arkiv> Push<'_, A> {
             }
         };
         let op = entity_op::<AnchorBody>(&bytes, self.cfg.control_lifetime)?;
-        write::send(
-            self.a,
-            &self.keys.control(&self.rid()),
-            &self.cfg.pipeline,
-            vec![vec![op]],
-        )
-        .await?;
-        Ok(())
+        self.send_from(&self.keys.control(&self.rid()), vec![vec![op]])
+            .await
     }
 
     /// Step 14: our anchor must be the head (first-created wins at every seq).

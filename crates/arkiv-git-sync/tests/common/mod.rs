@@ -25,6 +25,8 @@ pub struct Net {
     pub mem: Arc<MemArkiv>,
     /// `(sender, sends still let through)`: later sends from `sender` are dropped.
     drop: Mutex<Option<(Address, u64)>>,
+    /// `(from block, wei)`: the base fee is held at `wei` once the head reaches the block.
+    fee: Mutex<Option<(u64, u128)>>,
 }
 
 impl Net {
@@ -32,6 +34,7 @@ impl Net {
         Self {
             mem: Arc::new(MemArkiv::new(CHAIN)),
             drop: Mutex::new(None),
+            fee: Mutex::new(None),
         }
     }
 
@@ -40,8 +43,14 @@ impl Net {
         *self.drop.lock().expect("lock") = Some((sender, after));
     }
 
+    /// Hold the base fee at `wei` from block `from` on (a fee spike mid-push).
+    pub fn hold_base_fee(&self, from: u64, wei: u128) {
+        *self.fee.lock().expect("lock") = Some((from, wei));
+    }
+
     pub fn heal(&self) {
         *self.drop.lock().expect("lock") = None;
+        *self.fee.lock().expect("lock") = None;
     }
 
     pub fn fund(&self, a: Address) {
@@ -100,7 +109,11 @@ impl Arkiv for Net {
         if let Some(r) = self.mem.receipt(h).await? {
             return Ok(Some(r));
         }
-        self.mem.mine();
+        let n = self.mem.mine();
+        let held = *self.fee.lock().expect("lock");
+        if let Some((_, wei)) = held.filter(|(from, _)| n + 1 >= *from) {
+            self.mem.set_base_fee(wei);
+        }
         self.mem.receipt(h).await
     }
 }

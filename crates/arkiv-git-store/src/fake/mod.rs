@@ -103,6 +103,11 @@ impl MemArkiv {
         *self.lock().world.balances.entry(a).or_default() += wei;
     }
 
+    /// Overwrite `a`'s balance (tests that need an exact amount).
+    pub fn set_balance(&self, a: Address, wei: U256) {
+        self.lock().world.balances.insert(a, wei);
+    }
+
     pub fn set_base_fee(&self, wei: u128) {
         self.lock().base_fee = wei;
     }
