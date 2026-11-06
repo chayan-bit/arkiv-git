@@ -1,0 +1,12 @@
+[package]
+name = "openmls-xwing-spike"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+# Exact pins: PQ suites are draft-gated and their key derivation changes on OpenMLS main (see docs/p0/openmls-xwing.md).
+[dev-dependencies]
+openmls = { version = "=0.9.2", features = ["draft-ietf-mls-pq-ciphersuites", "libcrux-provider"] }
+openmls_traits = { version = "=0.6.0", features = ["draft-ietf-mls-pq-ciphersuites"] }
+openmls_libcrux_crypto = { version = "=0.4.0", features = ["draft-ietf-mls-pq-ciphersuites"] }
+openmls_basic_credential = { version = "=0.6.0", features = ["draft-ietf-mls-pq-ciphersuites"] }
