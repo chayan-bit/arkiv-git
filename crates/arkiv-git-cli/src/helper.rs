@@ -109,7 +109,7 @@ impl<'a, A: Arkiv> Session<'a, A> {
                 refs
             }
             false => {
-                // A peer url names a peer the view must hold even if it is no delegate.
+                // A peer url (`arkiv::<rid>/<nid>`) must sync that peer, delegate or not.
                 let view = self.sync(self.url.nid.into_iter().collect()).await?;
                 let l = listing(&view, self.url.nid.as_ref());
                 if let Some(h) = &l.head {

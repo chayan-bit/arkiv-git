@@ -88,7 +88,7 @@ Programs decide whether proofs are required; clients only verify them.
 An op payload may carry `proofs: [ { kind: "risc0", receipt, chunks: [..], public } ]`.
 `public` is the statement the receipt claims to prove, for a sealed patch the `arkiv_git_zk_core::Public` map `{ key_hash, ct_hash, base_hash, spec_hash, spec }` with hex hashes.
 A receipt (about 224 KB) does not fit the 64 KiB op payload cap, so its bytes travel in `xyz.arkiv.blob` ops and the proof entry references them by hash.
-A blob op has action `create` and payload `{ data: <hex> }`, at most 32,000 raw bytes per op (`proofs::BLOB_CHUNK`), so `op post --payload-json` can write it.
+A blob op has action `create` and payload `{ data: <hex> }`, at most 30,000 raw bytes per op (`proofs::BLOB_CHUNK`), so `op post --payload-json` can write it.
 `chunks` lists the sha256 hex of each chunk's raw bytes in order, and `receipt` is the sha256 hex of the whole receipt.
 A client concatenates the blob data whose hashes are listed and requires the result to hash to `receipt`.
 Blobs are content addressed, so anyone may post them and a junk blob cannot displace a real one.
@@ -211,12 +211,13 @@ All ids and oids are hex.
 
 ## Templates
 
-The `programs/` directory holds four demo programs, each tested from disk in the program crate.
+The `programs/` directory holds five demo programs, each tested from disk in the program crate.
 
 - `branch-protection.rhai`: `refs/heads/main` moves only to a patch head that at least `repo.quorum` delegates approved at that exact head; a revise clears the approvals.
 - `ci-attested.rhai`: `main` moves only to a commit that k of the n attesters listed at the top of the script reported as passing CI.
 - `bounty.rhai`: an issue bounty plus pledges becomes a `pay` obligation to the patch author once the merged patch head is accepted on `main`, and a payment receipt op clears it; the receipt's chain check happens outside the program.
 - `sealed-patch.rhai`: a commit op pins `sha256(key)`, a later reveal counts only if the key hashes to it, and unrevealed commitments are `release_key` obligations.
   An issue may require, allow or ignore a zero-knowledge proof for commits that name it (see "Proofs").
+- `agent-bounty.rhai`: `bounty.rhai` with scoped AI agents: a delegate grants an agent key scopes, a payout cap and an expiry, revokes it with another op, and agent patches need a human approval and stay under the cap (docs/p3/agents.md).
 
 Rhai functions cannot read top-level constants without modules, so configuration such as the attester list is written as small functions at the top of the script.
