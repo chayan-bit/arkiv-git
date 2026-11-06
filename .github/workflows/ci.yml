@@ -1,0 +1,11 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  tree:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No em dashes in docs
+        run: "! grep -rn $'—' --include='*.md' ."
+      - name: No tracked secrets files
+        run: "! git ls-files | grep -E '(\\.env$|\\.key$|^keys/)'"
