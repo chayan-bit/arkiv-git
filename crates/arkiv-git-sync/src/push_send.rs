@@ -2,7 +2,7 @@
 //! chunks with landing verification, manifests, refs, the anchor gate, the anchor, the
 //! post-verify, and the local commit. Every step is idempotent against chain state (4.4).
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use arkiv_git_core::{
     AnchorBody, BindBody, Body, CHUNK_SIZE, ErrorCode, Hash32, Kind, ManifestBody, PeerBody,
@@ -118,19 +118,30 @@ impl<A: Arkiv> Push<'_, A> {
             bulk_gas += gas;
             txs += 1;
         }
-        let chunks: u64 = self.pack_sizes()?.iter().map(|s| chunk_count(*s)).sum();
-        if chunks > 0 {
+        // Each pack is full chunks plus one shorter tail; price every chunk at its real size.
+        let mut by_len: BTreeMap<usize, u64> = BTreeMap::new();
+        for s in self.pack_sizes()? {
+            let full = s / CHUNK_SIZE as u64;
+            if full > 0 {
+                *by_len.entry(CHUNK_SIZE).or_default() += full;
+            }
+            let tail = (s % CHUNK_SIZE as u64) as usize;
+            if tail > 0 {
+                *by_len.entry(tail).or_default() += 1;
+            }
+        }
+        for (len, count) in by_len {
             let probe = chunk_op(
                 &self.rid(),
                 &ZERO,
                 0,
-                &vec![0xa5; CHUNK_SIZE],
+                &vec![0xa5; len],
                 self.cfg.data_lifetime,
             )?;
             let gas = write::estimate(self.a, bulk, &[probe]).await?;
             largest = largest.max(gas);
-            bulk_gas += chunks * gas;
-            txs += chunks;
+            bulk_gas += count * gas;
+            txs += count;
         }
         let base_fee = self.a.base_fee().await?;
         let pc = &self.cfg.pipeline;
