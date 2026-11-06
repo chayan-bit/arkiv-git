@@ -44,27 +44,24 @@ Open items from the funded run: no per-account pending limit was hit (200 accept
 ## Decided by the user
 
 - 2026-11-06: ML-DSA signatures from day one (identities, signed refs, anchors, COBs, MLS credentials).
+- 2026-11-06: hybrid composite ML-DSA-65 + Ed25519 for our own signatures (draft-ietf-lamps-pq-composite-sigs); a signature is valid only if both halves verify. MLS credentials stay pure ML-DSA because no hybrid MLS suite exists.
 
 ## Open decisions (yours, not made here)
 
-1. Pure ML-DSA-65 or hybrid ML-DSA-65 + Ed25519 composite for our own signatures (`pq-signatures.md`).
-   Recommendation: hybrid, so a forger must break both, which covers bugs in young ML-DSA code as well as quantum attacks.
-   Either half can be held in hardware (Secure Enclave on Apple 26+ holds ML-DSA-65; a YubiKey holds Ed25519).
-   Cost: about 3.4 KB per signature instead of 3.3 KB, and the composite draft is not yet an RFC.
-2. MLS signing at ML-DSA-44 (category 2), one level below X-Wing's category 3.
+1. MLS signing at ML-DSA-44 (category 2), one level below X-Wing's category 3.
    It is the only standard suite that keeps X-Wing; the only ML-DSA-65 suite drops X-Wing, and a custom suite would be non-standard.
    Recommendation: accept ML-DSA-44 inside MLS; MLS leaf keys become software keys bound to the hardware device key.
-3. Testnet funding for the P1 gate: about 4.4 tGLM per full 100 MB run, about 15 tGLM with debugging; the faucet has a 24-hour cooldown.
+2. Testnet funding for the P1 gate: about 4.4 tGLM per full 100 MB run, about 15 tGLM with debugging; the faucet has a 24-hour cooldown.
    Recommendation: run the full gate on a local `arkiv-reth --dev` node (no funds) and a 10 MiB run on Rabdi, and ask Arkiv for a testnet grant for the full Rabdi run.
-4. EVM owner keys derived from the same seed as the ML-DSA identity key (P1 design Q3).
+3. EVM owner keys derived from the same seed as the ML-DSA identity key (P1 design Q3).
    Recommendation: yes; a quantum break of the EVM key then makes clients fail closed instead of accepting a rollback.
-5. History access for new members (P2): a key lockbox re-wraps old epoch keys under the current one, which gives up forward secrecy for old content against current members.
-6. Rotation timer values (30 days or 500 pushes) remain open.
-7. Repo contracts (P4) cannot run on Arkiv; where they run is out of scope now.
+4. History access for new members (P2): a key lockbox re-wraps old epoch keys under the current one, which gives up forward secrecy for old content against current members.
+5. Rotation timer values (30 days or 500 pushes) remain open.
+6. Repo contracts (P4) cannot run on Arkiv; where they run is out of scope now.
 
 The P1 design lists further recommendations it resolved itself (canonical CBOR, control and bulk addresses per repo, self-contained packs, lifetime defaults); see `../p1/design.md` section on open questions.
 
 ## Next steps
 
 - Get an Arkiv access key from hub.arkiv.network (wallet sign-in plus captcha, a human step) before P1 integration tests, since anonymous reads run out after about 1,000 queries.
-- After decisions 1 to 4, start P1 implementation with TDD against the in-memory Arkiv fake, following `../p1/design.md`.
+- After decisions 1 to 3, start P1 implementation with TDD against the in-memory Arkiv fake, following `../p1/design.md`.

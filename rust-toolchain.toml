@@ -1,0 +1,4 @@
+# Matches the Arkiv node (arkiv-bindings at the pinned commit needs 1.97).
+[toolchain]
+channel = "1.97"
+components = ["rustfmt", "clippy"]
