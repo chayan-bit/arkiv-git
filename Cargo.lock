@@ -1243,6 +1243,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-signer-local",
  "arkiv-git-core",
+ "arkiv-git-crypto",
  "arkiv-git-escrow",
  "arkiv-git-private",
  "arkiv-git-program",
