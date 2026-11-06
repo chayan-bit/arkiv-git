@@ -1,0 +1,11 @@
+# Advisories we accept, each with its reason and its exit condition.
+[advisories]
+ignore = [
+  # crypto-bigint 0.5.5 timing variability (patched in >=0.7.6).
+  # Reached only through elliptic-curve 0.13 -> k256 / alloy-signer, i.e. secp256k1 EVM keys
+  # (Arkiv tx signing and EVM address derivation). The composite ML-DSA-65 + Ed25519 signatures
+  # that authenticate repo data do not use it. Exploiting it needs a co-located timing attacker,
+  # and the EVM keys only control Arkiv entity ownership, which clients never trust for content.
+  # shortcut: remove this entry as soon as alloy releases on elliptic-curve 0.14 / k256 0.14.
+  "RUSTSEC-2026-0387",
+]

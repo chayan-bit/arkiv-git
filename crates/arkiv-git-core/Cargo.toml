@@ -10,3 +10,11 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+arkiv-git-crypto = { path = "../arkiv-git-crypto" }
+minicbor = { version = "2", features = ["alloc", "derive"] }
+gix-validate = "0.13"
+thiserror = "2"
+
+[dev-dependencies]
+proptest = "1"
+hex = "0.4"
