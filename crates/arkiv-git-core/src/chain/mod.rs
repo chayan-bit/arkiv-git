@@ -3,6 +3,7 @@
 mod accept;
 mod anchor;
 mod bind;
+mod cob;
 mod identity;
 
 pub use accept::{
@@ -11,6 +12,7 @@ pub use accept::{
 };
 pub use anchor::{AnchorChain, AnchorLink, Start, anchor_chain};
 pub use bind::{BindChain, BindLink, bind_chain};
+pub use cob::{VerifiedOp, verify_ops};
 pub use identity::{IdentityChain, Revision, identity_chain, maj};
 
 use crate::entity::open;

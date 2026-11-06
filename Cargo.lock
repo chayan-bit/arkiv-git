@@ -1010,6 +1010,7 @@ dependencies = [
  "bs58",
  "futures-util",
  "hex",
+ "minicbor",
  "serde",
  "serde_json",
  "sha2 0.11.1",

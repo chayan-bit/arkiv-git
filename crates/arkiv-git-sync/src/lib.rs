@@ -5,6 +5,7 @@
 //! Verification rules live in `arkiv-git-core`; this crate feeds them what Arkiv returns
 //! and adds the checks core leaves to sync (chunks, packs, connectivity).
 
+pub mod cob;
 mod error;
 pub mod fetch;
 pub mod git;
