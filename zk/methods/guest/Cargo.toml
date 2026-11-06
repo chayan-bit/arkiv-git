@@ -1,0 +1,11 @@
+[package]
+name = "sealed_patch"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+arkiv-git-zk-core = { path = "../../../crates/arkiv-git-zk-core" }
+risc0-zkvm = { version = "=3.0.6", default-features = false, features = ["std"] }

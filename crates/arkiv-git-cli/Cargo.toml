@@ -26,6 +26,7 @@ arkiv-git-escrow = { path = "../arkiv-git-escrow" }
 arkiv-git-store = { path = "../arkiv-git-store", features = ["fake"] }
 arkiv-git-sync = { path = "../arkiv-git-sync", features = ["fake"] }
 arkiv-git-timelock = { path = "../arkiv-git-timelock" }
+arkiv-git-zk = { path = "../arkiv-git-zk" }
 clap = { version = "4", features = ["derive"] }
 hex = "0.4"
 serde = { version = "1", features = ["derive"] }

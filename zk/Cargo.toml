@@ -1,0 +1,5 @@
+# Out of the main workspace: building the guest needs the RISC Zero toolchain (rzup),
+# and the prover is heavy. See scripts/zk-prove.sh.
+[workspace]
+resolver = "3"
+members = ["methods", "prover"]

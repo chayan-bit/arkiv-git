@@ -55,6 +55,9 @@ pub enum Cmd {
     /// Accountable escrow: init, appoint, deposit, run the agent, audit.
     #[command(subcommand)]
     Escrow(crate::escrow::EscrowCmd),
+    /// Zero-knowledge receipts for sealed patches (offline).
+    #[command(subcommand)]
+    Zk(crate::zk::ZkCmd),
 }
 
 #[derive(Debug, Subcommand)]
@@ -437,10 +440,15 @@ pub fn run(cli: &Cli) -> Result<()> {
     } {
         return r;
     }
+    if let Cmd::Zk(z) = &cli.cmd {
+        return crate::zk::zk_cmd(z);
+    }
     crate::block_on(async {
         let (a, cfg) = backend::connect().await?;
         match &cli.cmd {
-            Cmd::Keys(_) | Cmd::Timelock(_) | Cmd::Program(ProgramCmd::Check(_)) => Ok(()),
+            Cmd::Keys(_) | Cmd::Timelock(_) | Cmd::Zk(_) | Cmd::Program(ProgramCmd::Check(_)) => {
+                Ok(())
+            }
             Cmd::Program(ProgramCmd::Pin(p)) => pin_cmd(&a, &cfg, p).await,
             Cmd::Program(ProgramCmd::Status { repo }) => {
                 program::status(&a, &cfg, &rid_of(repo)?).await

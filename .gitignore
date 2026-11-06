@@ -9,3 +9,6 @@ __pycache__/
 *.key
 keys/
 *.profraw
+.zk-toolchain/
+zk/target/
+zk/out/

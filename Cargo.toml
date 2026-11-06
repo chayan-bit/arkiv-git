@@ -10,7 +10,10 @@ members = [
   "crates/arkiv-git-cli",
   "crates/arkiv-git-program",
   "crates/arkiv-git-private",
+  "crates/arkiv-git-zk-core",
+  "crates/arkiv-git-zk",
 ]
+exclude = ["zk"]
 
 [workspace.package]
 version = "0.1.0"

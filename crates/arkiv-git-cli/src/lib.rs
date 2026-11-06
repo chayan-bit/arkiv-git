@@ -9,6 +9,7 @@ pub mod op;
 pub mod program;
 pub mod timelock;
 pub mod units;
+pub mod zk;
 
 use arkiv_git_core::ErrorCode;
 use arkiv_git_store::StoreError;
