@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Pushes a branch to your own namespace of an Arkiv repo and posts its xyz.arkiv.patch op,
+# or revises the op when the branch head moved. Prints the patch id. Run inside a clone.
+# Usage: scripts/arkiv-patch.sh <arkiv-url> <branch> [title]
+set -euo pipefail
+# shellcheck source=scripts/arkiv-lib.sh
+. "$(dirname "$0")/arkiv-lib.sh"
+
+url=${1:?usage: arkiv-patch.sh <arkiv-url> <branch> [title]}
+branch=${2:?usage: arkiv-patch.sh <arkiv-url> <branch> [title]}
+head=$(git rev-parse --verify "$branch^{commit}")
+title=${3:-$(git log -1 --format=%s "$head")}
+
+git push -q "$url" "$branch:refs/heads/$branch"
+me=$(my_nid)
+ops=$(ops_json "$url")
+patch=$(jq -r --arg me "$me" --arg b "$branch" 'map(select(.type == "xyz.arkiv.patch"
+  and .action == "create" and .author == $me and .payload.branch == $b)) | last | .id // empty' \
+  <<<"$ops")
+payload=$(jq -cn --arg t "$title" --arg h "$head" --arg b "$branch" \
+  '{title: $t, head: $h, branch: $b}')
+if [ -z "$patch" ]; then
+  patch=$(arkiv-git op post --repo "$url" --type xyz.arkiv.patch --action create \
+    --payload-json "$payload")
+elif ! patch_heads <<<"$ops" | grep -qxF "$patch $me $head"; then
+  arkiv-git op post --repo "$url" --type xyz.arkiv.patch --action revise --object "$patch" \
+    --parent "$patch" --payload-json "$payload" >/dev/null
+fi
+echo "$patch"
