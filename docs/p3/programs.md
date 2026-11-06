@@ -12,9 +12,16 @@ The identity body has an optional field `13: program`, a map `{ 1: engine, 2: ha
 `hash` is `H("program", source)`, the tagged SHA-256 of the exact UTF-8 source bytes (design section 2.1).
 A body without a pin omits key 13, so its canonical CBOR, its `h` and its signatures are unchanged.
 Changing the pin is an ordinary identity revision and needs the usual delegate quorum.
-`arkiv-git program pin --repo <rid> --file <path.rhai>` compiles the script, then proposes a revision with the new pin.
+`arkiv-git program pin --repo <rid> --file <path.rhai>` compiles the script, posts its source as an op, then proposes a revision with the new pin.
 
-TODO (after the COB merge): distribute the program source as a COB op of type `xyz.arkiv.program`, and have clients fetch the source whose hash matches the pin.
+## Source distribution
+
+The source travels as a collaborative-object op (docs/p3/cob-ops.md) of type `xyz.arkiv.program` and action `publish`, with payload `{ engine, source }`.
+Publish ops hang off one program object per repo; `program pin` creates that object with a `create` op the first time.
+A client uses the source of the first verified publish op whose `engine` equals the pinned engine and whose `Program::hash(source)` equals the pinned hash.
+Anyone may post a publish op, because the hash, not the author, decides which source counts.
+A pin with no matching source, a source that does not compile, or a fold that fails (for example in `init`) is `E_PROGRAM_MISSING`.
+The client then refuses to compute heads at all, so fetch and clone fail instead of falling back to the plain delegate rule.
 
 ## Determinism
 
@@ -80,11 +87,64 @@ A push whose `old` is not the last accepted head is rejected with `not a fast-fo
 A push with an empty `new` deletes the accepted head of that ref.
 The outcome holds `state_json`, the accepted and rejected pushes (with reasons), the obligations and the log lines.
 
+## Enforcement
+
+Every client enforces the pinned program; there is no server to trust.
+The sync crate (`crates/arkiv-git-sync/src/program.rs`) builds the fold input from what P1 already verifies.
+
+### Events
+
+Ops are the verified COB ops of the repo, converted to `ProgramOp`.
+Ref updates come from the verified anchor chains of the delegates of the current identity head, the same peers whose refs vote under P1.
+Each anchor after the first contributes one `RefUpdate` per ref whose oid differs from that delegate's previous signed refs: `old` is the previous oid (empty for a new ref) and `new` the signed one (empty for a deleted ref).
+Pushes by non-delegates are not events, as under P1 they never become canonical.
+Ops, anchors and identity entities are read in one creation-ordered query, so their ranks in that result give one Arkiv order for all events.
+The ranks differ between clients only by entities that expired or were created later, never in relative order, so every client folds the same sequence.
+
+### Seeding
+
+The program applies from the identity revision that set the current pin, at the position where that revision took effect.
+Pushes before that position are accepted as they were: the fold starts with the canonical heads (design 3.8, under the pinning revision's delegates and threshold) computed from each delegate's last signed refs before the pin.
+Ops before the pin are folded normally, so a patch or a bounty opened before the pin still counts.
+Only the refs entities of the last pre-pin push and later ones are read, so older refs entities may expire without breaking the fold.
+
+### Fetch and clone
+
+`fetch::sync` builds the verified view, then calls `program::enforce`, which folds the program and stores the result in `View::program`.
+`fetch::listing` then lists the program's last accepted head of every ref instead of the delegate quorum result.
+A rejected update never moves a canonical head, so every client ignores it, including pushes forced through a modified client.
+The peer namespaces `refs/namespaces/<nid>/` still mirror each delegate's signed refs, so the rejected commits stay inspectable.
+`arkiv-git program status --repo <rid>` prints the state JSON, the canonical heads, every rejected push with its reason, and the obligations.
+
+### Push
+
+`git-remote-arkiv` prepares the push locally, then calls `program::check_push`, which folds again with the would-be ref updates appended after everything on chain.
+If the program rejects one of them, the helper discards the prepared push and fails with `E_PROGRAM_REJECTED: <reason>` before any transaction is sent, so no gas is spent on a push the program would ignore.
+The check applies to delegates only, because only their pushes are events.
+The check is advisory for the pusher; the binding rule is the fetch-side fold that every other client runs.
+
+### Escrow hook
+
+`arkiv_git_sync::program::obligations(arkiv, rid)` returns the obligations of the pinned program (empty without a pin), for the escrow crate to act on.
+
+### Replay protection
+
+The program changes only which head is canonical; it does not touch the P1 checks.
+Anchor chains, high-water marks and `E_STALE_HEAD` still apply per peer before the fold sees any update, so a withheld or replayed anchor fails the fetch exactly as without a program.
+A rejected push still advances its author's anchor chain and mark; the next push of that delegate builds on it as usual.
+
+### Known limits
+
+`old` is the pusher's own previous oid, so a delegate whose push was rejected keeps the rejected oid as `old` for that ref, and its later pushes of that ref are not fast-forwards of the accepted head unless `check_push` returns `true`.
+When several delegates push the same accepted head, the second push is not a fast-forward and shows as a harmless rejection.
+Every client re-folds the whole history on each fetch; there is no cached state.
+
 ## Rust API
 
 `Program::load(engine_tag, source)` compiles a program and checks for `init`.
 `Program::hash(source)` gives the pin hash.
 `Program::fold(repo: RepoInfo, events)` takes `Event::Op(ProgramOp)` and `Event::Push(RefUpdate)` and returns an `Outcome`.
+`Program::fold_from(repo, seed, events)` starts the accepted heads at `seed` instead of empty; `Outcome::heads` holds the last accepted head per ref.
 `ProgramOp` mirrors the verified COB op: `id`, `author`, `rid`, `object`, `type_name`, `action`, `parents`, `payload` (canonical CBOR), `ts_ms`, `arkiv_order`.
 
 ## Dry run
