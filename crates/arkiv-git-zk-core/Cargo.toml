@@ -1,0 +1,20 @@
+[package]
+name = "arkiv-git-zk-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+# No rust-version: this crate is also compiled by the RISC Zero guest toolchain, which lags stable.
+description = "The sealed-patch relation, shared by the zkVM guest and the host verifier"
+
+[lints]
+workspace = true
+
+[dependencies]
+chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
+hex = { version = "0.4", default-features = false, features = ["alloc", "serde"] }
+serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
+sha2 = { version = "0.10", default-features = false }
+
+[dev-dependencies]
+chacha20poly1305 = { version = "0.10", features = ["getrandom"] }
