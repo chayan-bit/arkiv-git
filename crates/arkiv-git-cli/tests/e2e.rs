@@ -99,6 +99,50 @@ fn git_push_and_clone_through_the_remote_helper() {
     );
 }
 
+/// A non-delegate's push lands in its own namespace and is fetched through its peer url
+/// `arkiv::<rid>/<nid>`; a delegate merges it and a fresh clone gets the merge.
+#[test]
+fn a_contributor_push_is_fetched_through_its_peer_url() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let (root, log) = (tmp.path(), tmp.path().join("chain.log"));
+    let [alice, bob, carol] = ["alice", "bob", "carol"].map(|n| User::new(root, n, &log));
+    fund(&log, field(&alice.arkiv(&["keys", "init"]), "wallet:"));
+    let url = field(&alice.arkiv(&["init", "--name", "contrib"]), "url:").to_owned();
+    let work = root.join("work");
+    alice.git(root, &["init", "-q", &work.to_string_lossy()]);
+    write(&work, "README", b"v0\n");
+    alice.git(&work, &["add", "-A"]);
+    alice.git(&work, &["commit", "-q", "-m", "feat: v0"]);
+    alice.git(&work, &["push", "-q", &url, "main"]);
+
+    let bob_keys = bob.arkiv(&["keys", "init"]);
+    fund(&log, field(&bob_keys, "wallet:"));
+    let bob_url = format!("{url}/{}", field(&bob_keys, "nid:"));
+    let bw = root.join("bob-clone");
+    bob.git(root, &["clone", "-q", &url, &bw.to_string_lossy()]);
+    bob.git(&bw, &["checkout", "-q", "-b", "fix"]);
+    write(&bw, "FIX", b"fix\n");
+    bob.git(&bw, &["add", "-A"]);
+    bob.git(&bw, &["commit", "-q", "-m", "fix: contributor"]);
+    bob.git(&bw, &["push", "-q", "origin", "fix"]);
+    let fix = bob.git(&bw, &["rev-parse", "HEAD"]);
+
+    alice.git(&work, &["fetch", "-q", &bob_url, "refs/heads/fix"]);
+    assert_eq!(alice.git(&work, &["rev-parse", "FETCH_HEAD"]), fix);
+    alice.git(
+        &work,
+        &["merge", "-q", "--no-ff", "-m", "merge: fix", "FETCH_HEAD"],
+    );
+    alice.git(&work, &["push", "-q", &url, "main"]);
+    let merge = alice.git(&work, &["rev-parse", "HEAD"]);
+
+    let cw = root.join("carol-clone");
+    carol.git(root, &["clone", "-q", &url, &cw.to_string_lossy()]);
+    assert_eq!(carol.git(&cw, &["rev-parse", "HEAD"]), merge);
+    carol.git(&cw, &["merge-base", "--is-ancestor", &fix, "HEAD"]);
+    carol.git(&cw, &["fsck", "--full", "--strict"]);
+}
+
 #[test]
 fn errors_map_to_git_and_exit_codes() {
     let tmp = tempfile::tempdir().expect("tmp");
