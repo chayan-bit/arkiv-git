@@ -69,6 +69,32 @@ pub async fn connect() -> Result<(Backend, Config), CliError> {
     Ok((backend, cfg))
 }
 
+fn dev_only() -> CliError {
+    CliError::Usage(
+        "fund --dev only works with ARKIV_GIT_BACKEND=mem:<path>; on Rabdi get tGLM from \
+         hub.arkiv.network/faucet"
+            .into(),
+    )
+}
+
+/// Refuses before connecting unless `ARKIV_GIT_BACKEND` is `mem:<path>`.
+pub fn require_mem() -> Result<(), CliError> {
+    match target(std::env::var("ARKIV_GIT_BACKEND").ok().as_deref())? {
+        Target::Mem(_) => Ok(()),
+        Target::Rabdi => Err(dev_only()),
+    }
+}
+
+/// Dev faucet: credits `wei` to `wallet` on the `mem:` fake chain and returns the new
+/// balance. Any other backend refuses, since real chains are funded from a faucet.
+pub async fn dev_fund(b: &Backend, wallet: Address, wei: U256) -> Result<U256, CliError> {
+    let Backend::Mem(mem) = b else {
+        return Err(dev_only());
+    };
+    mem.fund(wallet, wei)?;
+    Ok(mem.balance(wallet).await?)
+}
+
 macro_rules! both {
     ($self:ident, $b:ident => $e:expr) => {
         match $self {

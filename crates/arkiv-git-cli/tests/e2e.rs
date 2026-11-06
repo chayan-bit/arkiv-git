@@ -231,3 +231,28 @@ fn ops_post_and_list_through_the_cli() {
     assert_eq!(float.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&float.stderr).contains("E_BAD_FORMAT"));
 }
+
+#[test]
+fn dev_faucet_funds_mem_wallets_only() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let log = tmp.path().join("chain.log");
+    let alice = User::new(tmp.path(), "alice", &log);
+    let wallet = field(&alice.arkiv(&["keys", "init"]), "wallet:").to_owned();
+    let funded = alice.arkiv(&["fund", "--dev", "100"]);
+    assert!(funded.contains(&wallet), "{funded}");
+    assert!(funded.contains("balance: 100 tGLM"), "{funded}");
+    assert!(alice.arkiv(&["init", "--name", "faucet"]).contains("url:"));
+
+    let rabdi = alice
+        .cmd(env!("CARGO_BIN_EXE_arkiv-git"), tmp.path())
+        .env("ARKIV_GIT_BACKEND", "rabdi")
+        .args(["fund", "--dev", "1"])
+        .output()
+        .expect("spawn");
+    assert_eq!(rabdi.status.code(), Some(2));
+    let err = String::from_utf8_lossy(&rabdi.stderr);
+    assert!(
+        err.contains("only works with ARKIV_GIT_BACKEND=mem:"),
+        "{err}"
+    );
+}

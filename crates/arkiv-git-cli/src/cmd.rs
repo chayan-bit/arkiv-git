@@ -145,6 +145,9 @@ pub struct FundArgs {
     /// Size of the push to estimate for, in bytes.
     #[arg(long, default_value_t = 0)]
     pub bytes: u64,
+    /// Credit this many tGLM to the wallet on the local fake chain (`mem:` backend only).
+    #[arg(long, value_parser = glm)]
+    pub dev: Option<U256>,
 }
 
 pub(crate) fn rid_of(repo: &str) -> Result<Rid> {
@@ -431,6 +434,9 @@ pub fn run(cli: &Cli) -> Result<()> {
     if let Cmd::Timelock(t) = &cli.cmd {
         return crate::timelock::run(t);
     }
+    if let Cmd::Fund(FundArgs { dev: Some(_), .. }) = &cli.cmd {
+        backend::require_mem()?;
+    }
     crate::block_on(async {
         let (a, cfg) = backend::connect().await?;
         match &cli.cmd {
@@ -442,6 +448,13 @@ pub fn run(cli: &Cli) -> Result<()> {
             Cmd::Keepalive(k) => keepalive_cmd(&a, &cfg, k).await,
             Cmd::Search(s) => search_cmd(&a, s).await,
             Cmd::Status { repo } => status_cmd(&a, &cfg, repo).await,
+            Cmd::Fund(FundArgs { dev: Some(wei), .. }) => {
+                let wallet = Keys::require(&cfg.home)?.wallet().address();
+                let have = backend::dev_fund(&a, wallet, *wei).await?;
+                println!("wallet:  {wallet}");
+                println!("balance: {} tGLM (fake chain)", fmt_glm(have));
+                Ok(())
+            }
             Cmd::Fund(f) => fund_cmd(&a, &cfg, f).await,
             Cmd::Op(o) => crate::op::run(&a, &cfg, o).await,
         }

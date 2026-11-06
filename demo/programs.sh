@@ -23,24 +23,9 @@ as() {
 g() { local who="$1"; shift; as "$who" git -c user.name="$who" -c user.email="$who@example.com" \
   -c init.defaultBranch=main -c commit.gpgsign=false "$@"; }
 
-# MemArkiv faucet: append a funding record to the fake chain log (fake chain only).
-faucet() {
-  python3 - "$DEMO/chain.log" "$1" <<'PY'
-import os, struct, sys
-log, addr = sys.argv[1], bytes.fromhex(sys.argv[2][2:])
-rec = lambda tag, p: tag + struct.pack('<I', len(p)) + p
-with open(log, 'ab') as f:
-    if os.path.getsize(log) == 0:
-        f.write(rec(b'C', struct.pack('>Q', 7)))
-    f.write(rec(b'F', addr + (10**24).to_bytes(32, 'big')))
-PY
-}
-
 new_user() {
-  local wallet
-  wallet="$(as "$1" arkiv-git keys init | awk '/wallet:/ {print $2}')"
-  faucet "$wallet"
-  echo "$1: funded wallet $wallet"
+  as "$1" arkiv-git keys init >/dev/null
+  echo "$1: $(as "$1" arkiv-git fund --dev 1000 | paste -sd' ' -)"
 }
 
 say "Alice (delegate) and Bob (contributor) get keys and test funds"
