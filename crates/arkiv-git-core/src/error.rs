@@ -34,6 +34,10 @@ pub enum ErrorCode {
     WrongChain,
     ProgramMissing,
     ProgramRejected,
+    /// P2: the caller holds no key for a private repo.
+    NotMember,
+    /// P2: the caller's role in a private repo does not allow the operation.
+    RoleDenied,
     Internal,
 }
 
@@ -68,6 +72,8 @@ impl ErrorCode {
             WrongChain => "E_WRONG_CHAIN",
             ProgramMissing => "E_PROGRAM_MISSING",
             ProgramRejected => "E_PROGRAM_REJECTED",
+            NotMember => "E_NOT_MEMBER",
+            RoleDenied => "E_ROLE_DENIED",
             Internal => "E_INTERNAL",
         }
     }

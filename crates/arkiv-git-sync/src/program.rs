@@ -32,7 +32,10 @@ const PENDING_ORDER: u64 = i64::MAX as u64;
 /// A pinned program folded over the repo; `outcome.heads` are the canonical heads.
 #[derive(Debug, Clone)]
 pub struct Enforced {
-    pub program: Program,
+    /// The pinned engine tag and source (compiled per fold: a rhai AST is not `Send`, and
+    /// views cross await points).
+    pub engine: String,
+    pub source: String,
     pub repo: RepoInfo,
     /// Canonical heads at the pin's identity revision (the fold's starting heads).
     pub seed: BTreeMap<String, Vec<u8>>,
@@ -51,7 +54,8 @@ fn fold(e: &Enforced, extra: Vec<RefUpdate>, git: &Git) -> Result<Outcome> {
         .cloned()
         .chain(extra.into_iter().map(Event::Push));
     let ancestry = |a: &[u8], b: &[u8]| is_ancestor(git, a, b);
-    e.program
+    Program::load(&e.engine, &e.source)
+        .map_err(|err| missing(err.to_string()))?
         .fold_with(e.repo.clone(), e.seed.clone(), events, &ancestry)
         .map_err(|err| missing(format!("program fold failed: {err}")))
 }
@@ -147,7 +151,7 @@ fn order(rank: &HashMap<Hash32, u64>, key: &Hash32) -> Result<u64> {
 }
 
 /// Compiles the source of the first publish op whose `Program::hash` is the pinned hash.
-fn source(pin: &ProgramPin, ops: &[VerifiedOp]) -> Result<Program> {
+fn source(pin: &ProgramPin, ops: &[VerifiedOp]) -> Result<String> {
     let src = ops
         .iter()
         .filter(|o| o.body.type_name == PROGRAM_TYPE && o.body.action == PUBLISH)
@@ -163,7 +167,8 @@ fn source(pin: &ProgramPin, ops: &[VerifiedOp]) -> Result<Program> {
                 hex::encode(pin.hash)
             ))
         })?;
-    Program::load(&pin.engine, &src).map_err(|e| missing(e.to_string()))
+    Program::load(&pin.engine, &src).map_err(|e| missing(e.to_string()))?;
+    Ok(src)
 }
 
 /// The earliest revision of the run up to the head that carries the head's pin.
@@ -241,7 +246,7 @@ pub async fn enforce<A: Arkiv>(a: &A, view: &View, git: &Git) -> Result<Option<E
         .filter(|o| kind_is(o, Kind::Cob))
         .collect();
     let ops = verify_ops(&view.rid, &cob::peer_keys(a, &cobs).await?, &cobs);
-    let program = source(&pin, &ops)?;
+    let source = source(&pin, &ops)?;
     let pin_rev = pin_revision(&view.identity);
     let pin_order = order(&rank, &pin_rev.effective.key)?;
     let (votes, pushes) = ref_events(a, view, &rank, pin_order).await?;
@@ -262,7 +267,8 @@ pub async fn enforce<A: Arkiv>(a: &A, view: &View, git: &Git) -> Result<Option<E
         name: head.body.name.clone(),
     };
     let mut e = Enforced {
-        program,
+        engine: pin.engine.clone(),
+        source,
         repo,
         seed,
         events,

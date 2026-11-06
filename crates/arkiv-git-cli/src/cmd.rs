@@ -3,7 +3,7 @@
 use alloy_signer_local::PrivateKeySigner;
 use arkiv_git_core::{IdBody, Rid};
 use arkiv_git_store::{Arkiv, U256};
-use arkiv_git_sync::identity::{self, RepoMeta};
+use arkiv_git_sync::identity;
 use arkiv_git_sync::ids::{hex32, parse_id, parse_url, to_text, unhex32};
 use arkiv_git_sync::keepalive::{self, KeepOpts};
 use arkiv_git_sync::search::{SearchQuery, search};
@@ -29,6 +29,9 @@ pub enum Cmd {
     Keys(KeysCmd),
     /// Create a repo with this peer as its single delegate.
     Init(InitArgs),
+    /// Private repos: key packages, members and roles.
+    #[command(subcommand)]
+    Member(crate::member::MemberCmd),
     /// Repo identity: show, propose a revision, accept one.
     #[command(subcommand)]
     Id(IdCmd),
@@ -69,6 +72,9 @@ pub struct InitArgs {
     pub lang: Option<String>,
     #[arg(long)]
     pub license: Option<String>,
+    /// Seal everything on Arkiv; members share keys through an MLS group.
+    #[arg(long)]
+    pub private: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -387,21 +393,6 @@ async fn fund_cmd<A: Arkiv>(a: &A, cfg: &Config, f: &FundArgs) -> Result<()> {
     Ok(())
 }
 
-async fn init_cmd<A: Arkiv>(a: &A, cfg: &Config, i: &InitArgs) -> Result<()> {
-    let keys = Keys::require(&cfg.home)?;
-    let meta = RepoMeta {
-        name: i.name.clone(),
-        description: i.description.clone(),
-        default_branch: i.default_branch.clone(),
-        lang: i.lang.clone(),
-        license: i.license.clone(),
-    };
-    let rid = identity::init(a, cfg, &keys, &meta).await?;
-    println!("rid: {}", to_text(&rid));
-    println!("url: arkiv::{}", to_text(&rid));
-    Ok(())
-}
-
 async fn pin_cmd<A: Arkiv>(a: &A, cfg: &Config, p: &program::PinArgs) -> Result<()> {
     let (rid, keys, (pin, src)) = (
         rid_of(&p.repo)?,
@@ -445,7 +436,8 @@ pub fn run(cli: &Cli) -> Result<()> {
             Cmd::Program(ProgramCmd::Status { repo }) => {
                 program::status(&a, &cfg, &rid_of(repo)?).await
             }
-            Cmd::Init(i) => init_cmd(&a, &cfg, i).await,
+            Cmd::Init(i) => crate::member::init_cmd(&a, &cfg, i).await,
+            Cmd::Member(m) => crate::member::member_cmd(&a, &cfg, m).await,
             Cmd::Id(c) => id_cmd(&a, &cfg, c).await,
             Cmd::Keepalive(k) => keepalive_cmd(&a, &cfg, k).await,
             Cmd::Search(s) => search_cmd(&a, s).await,

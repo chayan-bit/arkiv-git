@@ -150,8 +150,11 @@ impl<'a, A: Arkiv> TxPipeline<'a, A> {
     /// Send every job and wait for all receipts. A job too big for one tx is split in half
     /// until it fits; a revert stops the run with the decoded reason.
     pub async fn run(&mut self, jobs: Vec<Vec<Operation>>) -> Result<Vec<Landed>, StoreError> {
-        self.drive(jobs.into_iter().map(Job::Execute).enumerate().collect())
-            .await
+        let jobs = jobs
+            .into_iter()
+            .map(|ops| self.arkiv.seal_ops(ops).map(Job::Execute))
+            .collect::<Result<Vec<_>, _>>()?;
+        self.drive(jobs.into_iter().enumerate().collect()).await
     }
 
     /// A plain value transfer (wallet top-up).

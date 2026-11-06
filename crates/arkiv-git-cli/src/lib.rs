@@ -3,6 +3,7 @@
 pub mod backend;
 pub mod cmd;
 pub mod helper;
+pub mod member;
 pub mod op;
 pub mod program;
 pub mod timelock;

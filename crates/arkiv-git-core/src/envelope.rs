@@ -57,8 +57,8 @@ impl Envelope {
                 _ => FormatError::BodyTooLarge { len, max },
             });
         }
-        if kind == Kind::Chunk {
-            return Err(field("chunk", "kind", "chunks carry no envelope"));
+        if kind.unsigned() {
+            return Err(field(kind.name(), "kind", "this kind carries no envelope"));
         }
         let signer = pk.nid();
         let sig = sk.sign(&sig_msg(kind, &signer, &body), kind.sig_ctx())?;
@@ -156,7 +156,7 @@ fn decode_fields(d: &mut Decoder<'_>) -> Result<Envelope, Decoded> {
         )));
     }
     let kind = Kind::from_code(kind_code)
-        .filter(|k| *k != Kind::Chunk)
+        .filter(|k| !k.unsigned())
         .ok_or(Decoded::Format(field(
             "envelope",
             "kind",

@@ -21,6 +21,7 @@ path = "src/bin/arkiv-git.rs"
 alloy-signer-local = "2.5"
 arkiv-git-core = { path = "../arkiv-git-core" }
 arkiv-git-program = { path = "../arkiv-git-program" }
+arkiv-git-private = { path = "../arkiv-git-private" }
 arkiv-git-store = { path = "../arkiv-git-store", features = ["fake"] }
 arkiv-git-sync = { path = "../arkiv-git-sync", features = ["fake"] }
 arkiv-git-timelock = { path = "../arkiv-git-timelock" }

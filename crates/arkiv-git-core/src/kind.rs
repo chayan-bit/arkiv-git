@@ -12,9 +12,12 @@ pub enum Kind {
     Chunk,
     /// Collaborative-object op (docs/p3/cob-ops.md).
     Cob,
+    /// P2 private repos: MLS key packages, commits, welcomes and published epoch keys.
+    /// Unsigned like `chunk` (MLS messages carry their own signatures); `ag.t` names the type.
+    Mls,
 }
 
-const ALL: [Kind; 9] = [
+const ALL: [Kind; 10] = [
     Kind::Peer,
     Kind::Bind,
     Kind::Id,
@@ -24,6 +27,7 @@ const ALL: [Kind; 9] = [
     Kind::Manifest,
     Kind::Chunk,
     Kind::Cob,
+    Kind::Mls,
 ];
 
 impl Kind {
@@ -38,6 +42,7 @@ impl Kind {
             Kind::Manifest => 7,
             Kind::Chunk => 8,
             Kind::Cob => 9,
+            Kind::Mls => 10,
         }
     }
 
@@ -53,6 +58,7 @@ impl Kind {
             Kind::Manifest => "manifest",
             Kind::Chunk => "chunk",
             Kind::Cob => "cob",
+            Kind::Mls => "mls",
         }
     }
 
@@ -69,6 +75,7 @@ impl Kind {
             Kind::Manifest => b"arkiv-git/manifest/v1",
             Kind::Chunk => b"arkiv-git/chunk/v1",
             Kind::Cob => b"arkiv-git/cob/v1",
+            Kind::Mls => b"arkiv-git/mls/v1",
         }
     }
 
@@ -81,6 +88,11 @@ impl Kind {
     }
 
     /// Created by the control address (and kept alive forever) vs the bulk address.
+    /// Kinds stored without a signed envelope.
+    pub const fn unsigned(self) -> bool {
+        matches!(self, Kind::Chunk | Kind::Mls)
+    }
+
     pub const fn plane(self) -> Plane {
         match self {
             Kind::Refs | Kind::Manifest | Kind::Chunk => Plane::Bulk,
