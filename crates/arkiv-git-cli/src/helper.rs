@@ -109,7 +109,8 @@ impl<'a, A: Arkiv> Session<'a, A> {
                 refs
             }
             false => {
-                let view = self.sync(BTreeSet::new()).await?;
+                // A peer url names a peer the view must hold even if it is no delegate.
+                let view = self.sync(self.url.nid.into_iter().collect()).await?;
                 let l = listing(&view, self.url.nid.as_ref());
                 if let Some(h) = &l.head {
                     writeln!(out, "@{h} HEAD").map_err(io)?;

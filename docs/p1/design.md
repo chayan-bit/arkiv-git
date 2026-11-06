@@ -494,7 +494,7 @@ Protocol exchange (stdin from git, stdout to git, diagnostics on stderr):
 ```
 
 - `fetch` transfers objects with `git fetch-pack --stdin <cache>` after setting `uploadpack.allowAnySHA1InWant=true` in the cache, so canonical refs need not exist as real refs there.
-- For `arkiv://<rid>/<nid>`, `list` prints that peer's verified refs instead of canonical refs.
+- For `arkiv://<rid>/<nid>`, `list` prints that peer's verified refs instead of canonical refs; the sync must verify that peer even when it is not a delegate, and fails if it cannot.
 - Pushes always write the local signer's namespace, whatever the URL names.
 
 ### 4.2 Push flow
