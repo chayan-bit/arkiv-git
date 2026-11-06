@@ -73,7 +73,9 @@ Programs return `obligations`, each a map `#{ kind: "pay", to, amount, reason, k
 `to` is a `0x` address or an identity id; an identity id is paid at its latest control address for the repo.
 `key` is unique per program, and the escrow settles each key at most once.
 The crate reads obligations through `trait ObligationSource { fn obligations(&self, rid: &Rid) -> Result<Vec<Obligation>> }`.
-`FixedObligations` is the fixed-list implementation used by the tests and by the CLI's `--obligations <file.json>`; the Rhai engine plugs in as one more implementation.
+`FixedObligations` is the fixed-list implementation used by the tests and by the CLI's `--obligations <file.json>` override.
+By default the CLI reads the repo's pinned program through `ProgramObligations` (`crates/arkiv-git-cli/src/escrow.rs`), which fetches the repo into the local cache, folds the program with `arkiv_git_sync::program::obligations_in`, keeps the `pay` obligations and turns JSON integer amounts into decimal strings.
+`since_block` comes from the program: an obligation that carries `due_order` (the `order` of the event that made it due, for example the accepted push in `bounty.rhai`) gets the block of that event.
 Funds are allocated to unsettled pay obligations in program order, per purpose.
 
 ## How programs use it
@@ -85,7 +87,7 @@ Funds are allocated to unsettled pay obligations in program order, per purpose.
 
 ## Agent
 
-`arkiv-git escrow run --repo <rid> --obligations <file> [--once] [--interval <s>]` runs rounds; one round:
+`arkiv-git escrow run --repo <rid> [--obligations <file>] [--once] [--interval <s>]` runs rounds; one round:
 
 1. refuses to act unless the repo's appointment names this escrow's identity and address;
 2. finishes any journaled transfer (below);
@@ -102,7 +104,7 @@ Payout transfers are signed directly rather than through `TxPipeline::transfer`,
 
 - `arkiv-git escrow appoint --repo <rid> --escrow <id> --address <0x>`: run by a delegate; prints the escrow object id.
 - `arkiv-git escrow deposit --repo <rid> --amount <wei> --purpose <p> [--expiry <block>] [--tx <0x>]`: sends the amount from the wallet through `TxPipeline::transfer` (or claims an already sent `--tx`) and posts the deposit op.
-- `arkiv-git escrow audit --repo <rid> --obligations <file> [--grace <blocks>]`: prints the ledger summary and one `FLAG` line per violation; exits 1 if there is any.
+- `arkiv-git escrow audit --repo <rid> [--obligations <file>] [--grace <blocks>]`: prints the ledger summary and one `FLAG` line per violation; exits 1 if there is any.
 
 ## Store support
 

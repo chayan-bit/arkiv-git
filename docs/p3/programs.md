@@ -126,7 +126,15 @@ The check is advisory for the pusher; the binding rule is the fetch-side fold th
 
 ### Escrow hook
 
-`arkiv_git_sync::program::obligations(arkiv, rid)` returns the obligations of the pinned program (empty without a pin), for the escrow crate to act on.
+`arkiv_git_sync::program::obligations(arkiv, rid)` fetches the repo into the cache under `$ARKIV_GIT_HOME` and returns the obligations of the pinned program (empty without a pin); `obligations_in(arkiv, repo)` takes an explicit cache.
+An obligation may carry `due_order`, the `order` of the event that made it due; clients add `since_block`, the Arkiv block of that event, unless the program set one.
+`bounty.rhai` emits `#{ kind: "pay", to, amount, reason, key: "bounty:<issue id>", purpose: "bounty:<issue id>", due_order }`, which `arkiv-git escrow run` pays from deposits with that purpose (docs/p3/escrow.md).
+
+### Private repos
+
+Enforcement is not wired for private repos yet.
+`arkiv-git op post` and `program pin` write ops through the plain backend, not through the private repo's `Sealed` adapter, so a private repo's ops are stored unencrypted and a sealed reader's blinded queries do not see them.
+Pinning a program on a private repo is therefore expected to fail closed with `E_PROGRAM_MISSING` on fetch; this path has no test.
 
 ### Replay protection
 

@@ -3,7 +3,7 @@
 
 mod common;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use arkiv_git_cli::backend::MEM_CHAIN_ID;
 use arkiv_git_store::fake::FileMemArkiv;
@@ -11,56 +11,7 @@ use arkiv_git_sync::git::Git;
 use arkiv_git_sync::ids::{parse_id, parse_url};
 use arkiv_git_sync::{Config, Keys, Push, Repo, Update, Want, sync};
 use common::e2e::*;
-
-fn program(name: &str) -> String {
-    let p = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("../../programs/{name}.rhai"));
-    p.to_string_lossy().into_owned()
-}
-
-/// A funded user with keys.
-fn user(root: &Path, name: &str, log: &Path) -> User {
-    let u = User::new(root, name, log);
-    fund(log, field(&u.arkiv(&["keys", "init"]), "wallet:"));
-    u
-}
-
-/// Repo `name` owned by `owner` with one pre-pin push of `main`; returns (url, work, c0).
-fn repo_with_main(owner: &User, root: &Path, name: &str) -> (String, PathBuf, String) {
-    let url = field(&owner.arkiv(&["init", "--name", name]), "url:").to_owned();
-    let work = root.join(format!("{name}-work"));
-    owner.git(root, &["init", "-q", &work.to_string_lossy()]);
-    write(&work, "README", b"v0\n");
-    owner.git(&work, &["add", "-A"]);
-    owner.git(&work, &["commit", "-q", "-m", "feat: v0"]);
-    owner.git(&work, &["push", "-q", &url, "main"]);
-    let c0 = owner.git(&work, &["rev-parse", "HEAD"]);
-    (url, work, c0)
-}
-
-fn commit(u: &User, work: &Path, text: &str) -> String {
-    write(work, "README", text.as_bytes());
-    u.git(work, &["commit", "-qam", &format!("feat: {}", text.trim())]);
-    u.git(work, &["rev-parse", "HEAD"])
-}
-
-/// `op post`, returning the op id.
-fn post(
-    u: &User,
-    url: &str,
-    ty: &str,
-    action: &str,
-    object: Option<&str>,
-    payload: &str,
-) -> String {
-    let mut args = vec![
-        "op", "post", "--repo", url, "--type", ty, "--action", action,
-    ];
-    if let Some(o) = object {
-        args.extend(["--object", o, "--parent", o]);
-    }
-    args.extend(["--payload-json", payload]);
-    u.arkiv(&args).trim().to_owned()
-}
+use common::programs::*;
 
 fn clone_head(u: &User, root: &Path, url: &str, dir: &str) -> String {
     let dest = root.join(dir);

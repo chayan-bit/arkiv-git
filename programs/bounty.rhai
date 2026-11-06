@@ -48,7 +48,11 @@ fn on_push(state, push) {
     let amount = state.bounty[m.issue] ?? 0;
     if amount > 0 {
         let reason = `bounty for issue ${m.issue}`;
-        state.owed[m.issue] = #{ kind: "pay", to: m.to, amount: amount, reason: reason };
+        // key: stable and unique per issue (escrow pays each key once); purpose: the
+        // deposits that fund it; due_order: clients turn it into since_block.
+        let key = `bounty:${m.issue}`;
+        state.owed[m.issue] = #{ kind: "pay", to: m.to, amount: amount, reason: reason,
+            key: key, purpose: key, due_order: push.order };
         state.bounty[m.issue] = 0;
     }
     state.merged.remove(push.head);

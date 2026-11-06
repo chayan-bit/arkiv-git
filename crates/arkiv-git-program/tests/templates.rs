@@ -148,9 +148,13 @@ fn bounty_owes_patch_author_until_receipt() {
     let p = template("bounty");
     let o = p.fold(repo(), bounty_events(1)).expect("fold");
     let reason = format!("bounty for issue {}", hx(ISSUE));
+    let key = format!("bounty:{}", hx(ISSUE));
     assert_eq!(
         o.obligations,
-        vec![json!({"kind": "pay", "to": hx(5), "amount": 150, "reason": reason})]
+        vec![
+            json!({"kind": "pay", "to": hx(5), "amount": 150, "reason": reason,
+            "key": key, "purpose": key, "due_order": 5})
+        ]
     );
     let mut paid = bounty_events(1);
     paid.push(receipt(6, 150));

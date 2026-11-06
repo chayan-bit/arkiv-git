@@ -3,12 +3,16 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use arkiv_git_core::Rid;
 use arkiv_git_escrow::ops::{self, DEPOSIT, DepositPayload};
-use arkiv_git_escrow::{Agent, EscrowKeys, FixedObligations, Obligation, audit, ledger};
+use arkiv_git_escrow::{
+    Agent, EscrowKeys, FixedObligations, Obligation, ObligationSource, audit, ledger,
+};
 use arkiv_git_store::{Address, Arkiv, TxHash, TxPipeline};
 use arkiv_git_sync::ids::{parse_id, to_text};
-use arkiv_git_sync::{Config, Keys};
+use arkiv_git_sync::{Config, Keys, Repo};
 use clap::{Args, Subcommand};
+use tokio::runtime::Handle;
 
 use crate::cmd::rid_of;
 use crate::{CliError, Result};
@@ -59,9 +63,9 @@ pub struct DepositArgs {
 pub struct RunArgs {
     #[arg(long)]
     pub repo: String,
-    /// JSON array of the program's obligations.
+    /// JSON array of obligations instead of the repo's pinned program.
     #[arg(long)]
-    pub obligations: PathBuf,
+    pub obligations: Option<PathBuf>,
     #[arg(long)]
     pub once: bool,
     #[arg(long, default_value_t = 30)]
@@ -72,11 +76,75 @@ pub struct RunArgs {
 pub struct AuditArgs {
     #[arg(long)]
     pub repo: String,
+    /// JSON array of obligations instead of the repo's pinned program.
     #[arg(long)]
-    pub obligations: PathBuf,
+    pub obligations: Option<PathBuf>,
     /// Blocks a funded obligation may wait before it is a missing payout.
     #[arg(long, default_value_t = 300)]
     pub grace: u64,
+}
+
+/// Obligations of the repo's pinned program: each call fetches the repo into the local
+/// cache (fast-forwards need the objects) and folds it.
+pub struct ProgramObligations<'a, A> {
+    pub a: &'a A,
+    pub home: PathBuf,
+}
+
+/// One program obligation as the escrow reads it; JSON integer amounts become strings.
+fn to_obligation(mut v: serde_json::Value) -> arkiv_git_sync::Result<Obligation> {
+    if let Some(n) = v
+        .get("amount")
+        .filter(|a| a.is_number())
+        .map(ToString::to_string)
+    {
+        v["amount"] = n.into();
+    }
+    serde_json::from_value(v.clone()).map_err(|e| {
+        arkiv_git_sync::SyncError::coded(
+            arkiv_git_core::ErrorCode::BadFormat,
+            format!("program obligation {v}: {e}"),
+        )
+    })
+}
+
+impl<A: Arkiv> ObligationSource for ProgramObligations<'_, A> {
+    fn obligations(&self, rid: &Rid) -> arkiv_git_sync::Result<Vec<Obligation>> {
+        let repo = Repo::open(&self.home, rid)?;
+        // The trait is sync but runs inside the CLI's multi-threaded runtime.
+        let fold = arkiv_git_sync::program::obligations_in(self.a, &repo);
+        let values = tokio::task::block_in_place(|| Handle::current().block_on(fold))?;
+        values
+            .into_iter()
+            .filter(|v| v["kind"] == "pay")
+            .map(to_obligation)
+            .collect()
+    }
+}
+
+/// `--obligations <file>` if given, else the pinned program.
+pub enum Source<'a, A> {
+    File(FixedObligations),
+    Program(ProgramObligations<'a, A>),
+}
+
+impl<A: Arkiv> ObligationSource for Source<'_, A> {
+    fn obligations(&self, rid: &Rid) -> arkiv_git_sync::Result<Vec<Obligation>> {
+        match self {
+            Self::File(f) => f.obligations(rid),
+            Self::Program(p) => p.obligations(rid),
+        }
+    }
+}
+
+fn source<'a, A: Arkiv>(a: &'a A, cfg: &Config, file: &Option<PathBuf>) -> Result<Source<'a, A>> {
+    Ok(match file {
+        Some(p) => Source::File(obligations(p)?),
+        None => Source::Program(ProgramObligations {
+            a,
+            home: cfg.home.clone(),
+        }),
+    })
 }
 
 fn obligations(p: &Path) -> Result<FixedObligations> {
@@ -119,7 +187,7 @@ pub async fn run<A: Arkiv>(a: &A, cfg: &Config, cmd: &EscrowCmd) -> Result<()> {
         }
         EscrowCmd::Deposit(d) => deposit(a, cfg, d).await,
         EscrowCmd::Run(r) => {
-            let src = obligations(&r.obligations)?;
+            let src = source(a, cfg, &r.obligations)?;
             let keys = EscrowKeys::require(&cfg.home)?;
             let agent = Agent {
                 a,
@@ -137,7 +205,7 @@ pub async fn run<A: Arkiv>(a: &A, cfg: &Config, cmd: &EscrowCmd) -> Result<()> {
             rep.skipped.iter().for_each(|s| println!("skipped {s}"));
             Ok(())
         }
-        EscrowCmd::Audit(x) => audit_cmd(a, x).await,
+        EscrowCmd::Audit(x) => audit_cmd(a, cfg, x).await,
     }
 }
 
@@ -165,8 +233,8 @@ async fn deposit<A: Arkiv>(a: &A, cfg: &Config, d: &DepositArgs) -> Result<()> {
     Ok(())
 }
 
-async fn audit_cmd<A: Arkiv>(a: &A, x: &AuditArgs) -> Result<()> {
-    let src = obligations(&x.obligations)?;
+async fn audit_cmd<A: Arkiv>(a: &A, cfg: &Config, x: &AuditArgs) -> Result<()> {
+    let src = source(a, cfg, &x.obligations)?;
     let r = audit(a, &rid_of(&x.repo)?, &src, x.grace).await?;
     let l = &r.ledger;
     println!(

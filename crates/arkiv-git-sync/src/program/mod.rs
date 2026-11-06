@@ -7,20 +7,22 @@
 use std::collections::{BTreeMap, HashMap};
 
 use arkiv_git_core::{
-    AttrValue, Body, CREATE, CobOpBody, Envelope, ErrorCode, Hash32, IdentityChain, Kind, Nid,
-    ProgramPin, RefsBody, Revision, Rid, VerifiedOp, ZERO, canonical_refs, find_refs, verify_ops,
+    AttrValue, Body, Envelope, ErrorCode, Hash32, IdentityChain, Kind, Nid, ProgramPin, RefsBody,
+    Revision, VerifiedOp, canonical_refs, find_refs, verify_ops,
 };
 use arkiv_git_program::{Event, Outcome, Program, ProgramOp, RefUpdate, RepoInfo};
 use arkiv_git_store::{Arkiv, Pred};
 use serde_json::{Value, json};
 
 use crate::git::Git;
-use crate::keys::Keys;
 use crate::observe::{all, b32, by_hashes, kind};
-use crate::repo::{Config, Repo};
 use crate::state::{PendingPush, unhex};
-use crate::view::{View, Want};
-use crate::{Result, SyncError, cob, fetch};
+use crate::view::View;
+use crate::{Result, SyncError, cob};
+
+mod publish;
+
+pub use publish::{obligations, obligations_in, publish};
 
 /// COB type of program source ops.
 pub const PROGRAM_TYPE: &str = "xyz.arkiv.program";
@@ -40,6 +42,8 @@ pub struct Enforced {
     /// Canonical heads at the pin's identity revision (the fold's starting heads).
     pub seed: BTreeMap<String, Vec<u8>>,
     pub events: Vec<Event>,
+    /// Block of each Arkiv order (rank), to turn an obligation's `due_order` into `since_block`.
+    pub blocks: Vec<u64>,
     pub outcome: Outcome,
 }
 
@@ -58,6 +62,25 @@ fn fold(e: &Enforced, extra: Vec<RefUpdate>, git: &Git) -> Result<Outcome> {
         .map_err(|err| missing(err.to_string()))?
         .fold_with(e.repo.clone(), e.seed.clone(), events, &ancestry)
         .map_err(|err| missing(format!("program fold failed: {err}")))
+        .map(|o| Outcome {
+            obligations: o
+                .obligations
+                .into_iter()
+                .map(|v| since_block(v, &e.blocks))
+                .collect(),
+            ..o
+        })
+}
+
+/// Adds `since_block` (the block of Arkiv order `due_order`) to an obligation that names
+/// the event that made it due and has no `since_block` of its own.
+fn since_block(mut v: Value, blocks: &[u64]) -> Value {
+    let due = v.get("due_order").and_then(Value::as_u64);
+    let block = due.and_then(|o| blocks.get(usize::try_from(o).ok()?).copied());
+    if let (Some(b), Some(m)) = (block, v.as_object_mut()) {
+        m.entry("since_block").or_insert(json!(b));
+    }
+    v
 }
 
 /// Git ancestry of commit `a` to commit `b` in `git`, or `None` if either is missing.
@@ -240,6 +263,7 @@ pub async fn enforce<A: Arkiv>(a: &A, view: &View, git: &Git) -> Result<Option<E
     let kinds = [Kind::Cob, Kind::Anchor, Kind::Id, Kind::IdAcc].map(kind);
     let filter = Pred::And(vec![b32("ag.rid", &view.rid), Pred::Or(kinds.to_vec())]);
     let observed = all(a, filter).await?;
+    let blocks: Vec<u64> = observed.iter().map(|o| o.block).collect();
     let rank: HashMap<Hash32, u64> = (0u64..).zip(&observed).map(|(i, o)| (o.key, i)).collect();
     let cobs: Vec<_> = observed
         .into_iter()
@@ -272,6 +296,7 @@ pub async fn enforce<A: Arkiv>(a: &A, view: &View, git: &Git) -> Result<Option<E
         repo,
         seed,
         events,
+        blocks,
         outcome: Outcome {
             state_json: String::new(),
             accepted: vec![],
@@ -301,57 +326,6 @@ pub fn check_push(view: &View, nid: &Nid, pending: &PendingPush, git: &Git) -> R
         .and_then(|p| p.head.as_ref())
         .map(|h| &h.refs);
     e.check(ref_updates(*nid, old, &new, PENDING_ORDER), git)
-}
-
-fn now_ms() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| u64::try_from(d.as_millis()).unwrap_or(u64::MAX))
-}
-
-/// Posts `{engine, source}` as a publish op on the repo's program object (created on first
-/// use); returns the publish op id.
-pub async fn publish<A: Arkiv>(
-    a: &A,
-    cfg: &Config,
-    keys: &Keys,
-    rid: &Rid,
-    engine: &str,
-    source: &str,
-) -> Result<Hash32> {
-    let op = |object: Hash32, action: &str, payload: &Value| -> Result<CobOpBody> {
-        Ok(CobOpBody {
-            rid: *rid,
-            type_name: PROGRAM_TYPE.into(),
-            object,
-            parents: if object == ZERO { vec![] } else { vec![object] },
-            action: action.into(),
-            payload: cob::json::to_cbor(payload)?,
-            ts_ms: now_ms(),
-        })
-    };
-    let existing = cob::list(a, rid, None, Some(PROGRAM_TYPE)).await?;
-    let object = match existing.iter().find(|o| o.body.is_create()) {
-        Some(o) => o.id,
-        None => cob::post(a, cfg, keys, &op(ZERO, CREATE, &json!({}))?).await?,
-    };
-    let payload = json!({ "engine": engine, "source": source });
-    cob::post(a, cfg, keys, &op(object, PUBLISH, &payload)?).await
-}
-
-/// Obligations of the pinned program of `rid` (empty without a pin); the escrow hook. It
-/// fetches into the cache under [`Config::default_home`], since fast-forwards need objects.
-pub async fn obligations<A: Arkiv>(a: &A, rid: &Rid) -> Result<Vec<Value>> {
-    obligations_in(a, &Repo::open(&Config::default_home(), rid)?).await
-}
-
-/// [`obligations`] with an explicit repo cache.
-pub async fn obligations_in<A: Arkiv>(a: &A, repo: &Repo) -> Result<Vec<Value>> {
-    let view = fetch::sync(a, repo, &Want::default()).await?;
-    Ok(view
-        .program
-        .map(|e| e.outcome.obligations)
-        .unwrap_or_default())
 }
 
 #[cfg(test)]
@@ -402,5 +376,19 @@ mod tests {
         );
         assert!(u.iter().all(|u| u.arkiv_order == 7 && u.author == [9; 32]));
         assert_eq!(ref_updates([9; 32], None, &new, 1).len(), 3);
+    }
+
+    #[test]
+    fn due_order_becomes_since_block() {
+        let blocks = [10, 11, 15];
+        let ob = since_block(json!({"key": "k", "due_order": 2}), &blocks);
+        assert_eq!(ob["since_block"], 15);
+        let kept = since_block(json!({"due_order": 2, "since_block": 3}), &blocks);
+        assert_eq!(kept["since_block"], 3, "an explicit since_block wins");
+        assert!(
+            since_block(json!({"due_order": 9}), &blocks)
+                .get("since_block")
+                .is_none()
+        );
     }
 }
