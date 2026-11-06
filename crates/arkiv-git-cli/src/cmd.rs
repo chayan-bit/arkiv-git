@@ -46,6 +46,9 @@ pub enum Cmd {
     /// Collaborative-object ops: post one, list verified ones.
     #[command(subcommand)]
     Op(crate::op::OpCmd),
+    /// Timelock encryption on drand quicknet: seal now, anyone opens at time T.
+    #[command(subcommand)]
+    Timelock(crate::timelock::TimelockCmd),
 }
 
 #[derive(Debug, Subcommand)]
@@ -425,10 +428,13 @@ pub fn run(cli: &Cli) -> Result<()> {
         }
         _ => {}
     }
+    if let Cmd::Timelock(t) = &cli.cmd {
+        return crate::timelock::run(t);
+    }
     crate::block_on(async {
         let (a, cfg) = backend::connect().await?;
         match &cli.cmd {
-            Cmd::Keys(_) | Cmd::Program(ProgramCmd::Check(_)) => Ok(()),
+            Cmd::Keys(_) | Cmd::Timelock(_) | Cmd::Program(ProgramCmd::Check(_)) => Ok(()),
             Cmd::Program(ProgramCmd::Pin(p)) => pin_cmd(&a, &cfg, p).await,
             Cmd::Program(ProgramCmd::Status { repo }) => program::status(&a, &rid_of(repo)?).await,
             Cmd::Init(i) => init_cmd(&a, &cfg, i).await,

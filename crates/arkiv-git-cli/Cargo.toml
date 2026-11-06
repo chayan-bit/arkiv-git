@@ -23,6 +23,7 @@ arkiv-git-core = { path = "../arkiv-git-core" }
 arkiv-git-program = { path = "../arkiv-git-program" }
 arkiv-git-store = { path = "../arkiv-git-store", features = ["fake"] }
 arkiv-git-sync = { path = "../arkiv-git-sync", features = ["fake"] }
+arkiv-git-timelock = { path = "../arkiv-git-timelock" }
 clap = { version = "4", features = ["derive"] }
 hex = "0.4"
 serde = { version = "1", features = ["derive"] }

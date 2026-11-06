@@ -5,6 +5,7 @@ pub mod cmd;
 pub mod helper;
 pub mod op;
 pub mod program;
+pub mod timelock;
 pub mod units;
 
 use arkiv_git_core::ErrorCode;
@@ -17,6 +18,8 @@ pub enum CliError {
     Usage(String),
     #[error(transparent)]
     Sync(#[from] SyncError),
+    #[error(transparent)]
+    Timelock(#[from] arkiv_git_timelock::TimelockError),
 }
 
 impl From<StoreError> for CliError {
@@ -28,7 +31,7 @@ impl From<StoreError> for CliError {
 impl CliError {
     pub fn code(&self) -> Option<ErrorCode> {
         match self {
-            Self::Usage(_) => None,
+            Self::Usage(_) | Self::Timelock(_) => None,
             Self::Sync(e) => Some(e.code()),
         }
     }
@@ -36,6 +39,13 @@ impl CliError {
     /// `arkiv-git` exit status: 1 verification, 2 usage, 3 transport, 4 funds.
     pub fn exit_code(&self) -> i32 {
         use ErrorCode::*;
+        if let Self::Timelock(e) = self {
+            return match e {
+                arkiv_git_timelock::TimelockError::Usage(_) => 2,
+                arkiv_git_timelock::TimelockError::Fetch(_) => 3,
+                _ => 1,
+            };
+        }
         match self.code() {
             None => 2,
             Some(InsufficientFunds) => 4,
@@ -47,6 +57,9 @@ impl CliError {
     /// One line: `<CODE>: <message>` (or `usage: <message>`).
     pub fn line(&self) -> String {
         let msg = self.to_string().replace('\n', " ");
+        if let Self::Timelock(e) = self {
+            return format!("{}: {msg}", e.code());
+        }
         match self.code() {
             None => format!("usage: {msg}"),
             Some(c) => format!("{}: {msg}", c.as_str()),
