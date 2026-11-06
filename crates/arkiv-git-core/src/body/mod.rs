@@ -6,7 +6,7 @@ mod peer;
 mod refs;
 
 pub use anchor::{AnchorBody, ManifestBody, Require};
-pub use id::IdBody;
+pub use id::{IdBody, ProgramPin};
 pub use peer::{BindBody, IdAccBody, PeerBody};
 pub use refs::{RefEntry, RefsBody};
 

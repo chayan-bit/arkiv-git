@@ -243,3 +243,29 @@ fn field_rules_are_enforced() {
     p.pk.pop();
     assert!(PeerBody::decode(&p.encode()).is_err(), "pk length");
 }
+
+#[test]
+fn identity_round_trips_with_and_without_program_pin() {
+    let plain = root();
+    let pinned = IdBody {
+        program: Some(ProgramPin {
+            engine: "rhai/1".into(),
+            hash: h32(5),
+        }),
+        ..root()
+    };
+    assert_eq!(IdBody::decode(&plain.encode()).expect("plain"), plain);
+    assert_eq!(IdBody::decode(&pinned.encode()).expect("pinned"), pinned);
+    // No pin means no key 13: the encoding is a strict prefix-compatible extension.
+    let (a, b) = (plain.encode(), pinned.encode());
+    assert!(b.len() > a.len());
+    assert_eq!(a[1..], b[1..a.len()], "fields 1..12 encode identically");
+    let empty = IdBody {
+        program: Some(ProgramPin {
+            engine: String::new(),
+            hash: h32(5),
+        }),
+        ..root()
+    };
+    assert!(empty.validate().is_err());
+}

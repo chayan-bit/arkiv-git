@@ -60,6 +60,7 @@ pub async fn init<A: Arkiv>(a: &A, cfg: &Config, keys: &Keys, meta: &RepoMeta) -
         lang: meta.lang.clone(),
         license: meta.license.clone(),
         nonce: Some(nonce()),
+        program: None,
     };
     root.validate()?;
     let s = sign(keys.sk(), &root)?;

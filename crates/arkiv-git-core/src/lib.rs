@@ -20,8 +20,8 @@ mod types;
 
 pub use attrs::{AttrValue, Attribute, check_arkiv_rules, chunk_attributes};
 pub use body::{
-    AnchorBody, BindBody, Body, IdAccBody, IdBody, ManifestBody, PeerBody, RefEntry, RefsBody,
-    Require,
+    AnchorBody, BindBody, Body, IdAccBody, IdBody, ManifestBody, PeerBody, ProgramPin, RefEntry,
+    RefsBody, Require,
 };
 pub use canonical::{CanonicalRefs, canonical_refs};
 pub use chain::{

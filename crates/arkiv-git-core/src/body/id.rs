@@ -38,6 +38,20 @@ pub struct IdBody {
     /// Required iff `rev = 0`.
     #[cbor(n(12), with = "minicbor::bytes")]
     pub nonce: Option<[u8; 16]>,
+    /// Repo program pinned by hash (docs/p3/programs.md). Omitted from the CBOR when absent,
+    /// so bodies without a pin encode exactly as before.
+    #[n(13)]
+    pub program: Option<ProgramPin>,
+}
+
+/// `{ 1: engine tag, 2: H("program", source) }`.
+#[derive(Debug, Clone, PartialEq, Eq, minicbor::Encode, minicbor::Decode)]
+#[cbor(map)]
+pub struct ProgramPin {
+    #[n(1)]
+    pub engine: String,
+    #[cbor(n(2), with = "minicbor::bytes")]
+    pub hash: Hash32,
 }
 
 fn name_ok(n: &str) -> bool {
@@ -136,6 +150,12 @@ impl Body for IdBody {
         require(
             self.license.as_deref().is_none_or(license_ok),
             field("id", "license", "1..64 B SPDX id"),
+        )?;
+        require(
+            self.program
+                .as_ref()
+                .is_none_or(|p| (1..=32).contains(&p.engine.len())),
+            field("id", "program", "engine tag 1..32 B"),
         )
     }
 
