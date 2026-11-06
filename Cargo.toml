@@ -5,6 +5,7 @@ members = [
   "crates/arkiv-git-core",
   "crates/arkiv-git-store",
   "crates/arkiv-git-sync",
+  "crates/arkiv-git-escrow",
   "crates/arkiv-git-cli",
 ]
 
