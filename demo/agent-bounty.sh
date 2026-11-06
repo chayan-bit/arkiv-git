@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # An AI agent works an arkiv-git bounty through the MCP server (docs/live/agent-bounty.md).
 #
-#   demo/agent-bounty.sh setup|alice|agent|merge|verify|all
+#   demo/agent-bounty.sh setup|alice|recap|agent|merge|verify|all
 #
 # ROOT holds one home per actor (alice, escrow, agent, bank) and state.env.
 # MODE=mem runs on the file-persisted fake chain; MODE=live runs on Rabdi, with the
@@ -105,6 +105,8 @@ agent() {
   say "the agent (headless Codex CLI) works the bounty through arkiv-git-mcp"
   local dir=$ROOT/agent/session
   mkdir -p "$dir"
+  # Codex's sandbox refuses a writable root reached through a symlink (macOS /tmp).
+  dir=$(cd "$dir" && pwd -P)
   cp "$FIX/demo.receipt" "$FIX/demo.public.json" "$dir/"
   local env="{ARKIV_GIT_HOME=\"$ROOT/agent/.arkiv-git\", GIT_CONFIG_GLOBAL=\"/dev/null\""
   env+=", GIT_AUTHOR_NAME=\"agent\", GIT_AUTHOR_EMAIL=\"agent@example.com\""
@@ -128,6 +130,16 @@ commit message. 5) attach_proof with payload {\"title\": <short>, \"head\": <the
     -c 'mcp_servers.arkiv-git.tool_timeout_sec=900' \
     -c 'mcp_servers.arkiv-git.default_tools_approval_mode="approve"' \
     "$prompt" </dev/null 2>"$ROOT/agent/codex.stderr" | tee "$ROOT/agent/session.jsonl" | python3 "$REPO_DIR/demo/show-agent.py"
+}
+
+recap() {
+  say "the live repo so far: alice's ops, read back from Rabdi"
+  echo "url: $URL"
+  as bank arkiv-git op list --repo "$URL" --json | python3 -c 'import json,sys
+for o in json.load(sys.stdin):
+    p = json.dumps(o["payload"], separators=(",", ":"))
+    print(o["block"], o["type"], o["action"], o["author"][:9], p[:90])'
+  as bank arkiv-git program status --repo "$URL" | grep -E "^program:" || true
 }
 
 merge() {
@@ -156,16 +168,17 @@ verify() {
   read -r tx to amount <<<"$paid"
   echo "payout tx: $tx to $to amount $amount wei"
   [ "$MODE" = mem ] && return
-  local block; block=$(curl -s -X POST -H 'content-type: application/json' "$RPC" \
-    -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_getTransactionReceipt\",\"params\":[\"$tx\"]}" |
-    python3 -c 'import json,sys; print(int(json.load(sys.stdin)["result"]["blockNumber"],16))')
-  local before after; before=$(balance "$to" "$(printf '0x%x' $((block - 1)))"); after=$(balance "$to" "$(printf '0x%x' "$block")")
-  echo "agent $to: $before -> $after wei (delta $((after - before))) at block $block"
+  # Rabdi serves state at the chain head only, so the delta comes from the mined receipt.
+  curl -s -X POST -H 'content-type: application/json' "$RPC" \
+    -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_getTransactionByHash\",\"params\":[\"$tx\"]}" |
+    python3 -c 'import json,sys; t=json.load(sys.stdin)["result"]
+print("mined in block %d: %s -> %s, value %d wei" % (int(t["blockNumber"],16), t["from"], t["to"], int(t["value"],16)))'
+  echo "agent $to balance now: $(balance "$to" latest) wei"
   echo "$EXPLORER/tx/$tx"
 }
 
 case "${1:-all}" in
-  setup | alice | agent | merge | verify) "$1" ;;
+  setup | alice | recap | agent | merge | verify) "$1" ;;
   all) setup; alice; agent; merge; verify ;;
-  *) echo "usage: $0 setup|alice|agent|merge|verify|all" >&2; exit 2 ;;
+  *) echo "usage: $0 setup|alice|recap|agent|merge|verify|all" >&2; exit 2 ;;
 esac

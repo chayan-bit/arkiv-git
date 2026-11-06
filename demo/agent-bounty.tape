@@ -1,10 +1,10 @@
 # Live AI-agent bounty on Rabdi with Codex as the agent (docs/live/agent-bounty.md).
-# Run after `setup` and funding, with /tmp/arkiv-git the repo checkout, /tmp/agent-demo the
+# Run after `setup`, funding and `alice` (its ops are read back live by `recap`), with /tmp/arkiv-git the repo checkout, /tmp/agent-demo the
 # demo ROOT and ARKIV_ACCESS_KEY already exported (never typed here):
 #   cd /tmp/arkiv-git && nix-shell -p vhs --run 'vhs demo/agent-bounty.tape'
 # Output goes to the demo root; the rendered files belong on the demo-assets branch.
-Output /tmp/agent-demo/agent-bounty.gif
-Output /tmp/agent-demo/agent-bounty.mp4
+Output "/tmp/agent-demo/agent-bounty.gif"
+Output "/tmp/agent-demo/agent-bounty.mp4"
 Set Shell bash
 Set FontSize 13
 Set Width 1280
@@ -20,9 +20,9 @@ Show
 
 Type "# arkiv-git on the live Rabdi testnet: a Codex agent claims a bounty through arkiv-git-mcp"
 Enter
-Type "demo/agent-bounty.sh alice"
+Type "demo/agent-bounty.sh recap"
 Enter
-Wait@15m
+Wait@5m
 Type "demo/agent-bounty.sh agent"
 Enter
 Wait@25m
