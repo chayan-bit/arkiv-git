@@ -78,7 +78,7 @@ pub async fn show<A: Arkiv>(a: &A, rid: &Rid, state: &State) -> Result<IdentityC
     Ok(view::identity(a, rid, state).await?.0)
 }
 
-async fn with_bind<A: Arkiv>(
+pub(crate) async fn with_bind<A: Arkiv>(
     a: &A,
     cfg: &Config,
     keys: &Keys,
