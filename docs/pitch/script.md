@@ -125,7 +125,7 @@ On screen: repo URL large, the rid below it in small text.
 
 - Resolution 1920x1080, terminal font size 22 or larger (the VHS tape renders at its own size; for a fresh screen capture use a 100x28 terminal), dark theme, no notifications, clock hidden.
 - Pre-run everything slow so nothing waits on chain: build with `cargo build --release` and `export PATH="$PWD/target/release:$PATH"`, run `demo/programs.sh` once, and render the tape with `nix-shell -p vhs --run 'vhs demo/arkiv-git.tape'`.
-- Scene 3 needs a 1-day-lifetime repo that is still alive: the live repo was created 2026-11-07 with 1 day lifetimes (43,200 blocks), so run `arkiv-git status arkiv::z5b15ZhFLNackCqiyAL5y4dMj4MFGfVrtgLmZ9PPDU1AH` first and, if it is close to expiry, extend it with `arkiv-git keepalive` (any funded key may).
+- Scene 3 needs the live repo to still be alive: it was created 2026-11-07 with 1 day lifetimes and then extended by `arkiv-git keepalive` to at least 14 days, so it should be alive, but run `arkiv-git status arkiv::z5b15ZhFLNackCqiyAL5y4dMj4MFGfVrtgLmZ9PPDU1AH` first to confirm.
 - Do one dry clone of the live rid in a scratch `$ARKIV_GIT_HOME` right before recording to confirm it still resolves and prints `c9cf57a feat: v1`.
 - Scene 6: pre-post the grant, the issue and the receipt blobs (each 30,000-byte blob op takes about 4 to 6 s and costs about 0.0027 tGLM), and pre-fund the agent, escrow and bank wallets, so the take only shows the claim, the fold and the payout.
 - Scene 6 on Rabdi: only claim it is live if that run completed uninterrupted; otherwise keep the "in-memory chain" caption.
