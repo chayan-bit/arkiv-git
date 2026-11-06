@@ -310,3 +310,34 @@ fn private_repo_members_push_and_clone_outsiders_get_not_member() {
     assert!(!out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("E_NOT_MEMBER"));
 }
+
+#[test]
+fn peer_url_fetches_a_non_delegate_peers_refs() {
+    // design 4.1: `arkiv::<rid>/<nid>` lists that peer's verified refs, delegate or not.
+    let tmp = tempfile::tempdir().expect("tmp");
+    let log = tmp.path().join("chain.log");
+    let [alice, bob] = ["alice", "bob"].map(|n| User::new(tmp.path(), n, &log));
+    let bob_nid = {
+        let keys = bob.arkiv(&["keys", "init"]);
+        fund(&log, field(&keys, "wallet:"));
+        field(&keys, "nid:").to_owned()
+    };
+    fund(&log, field(&alice.arkiv(&["keys", "init"]), "wallet:"));
+    let url = field(&alice.arkiv(&["init", "--name", "peers"]), "url:").to_owned();
+    let work = tmp.path().join("work");
+    alice.git(tmp.path(), &["init", "-q", &work.to_string_lossy()]);
+    write(&work, "README", b"v0\n");
+    alice.git(&work, &["add", "-A"]);
+    alice.git(&work, &["commit", "-q", "-m", "feat: v0"]);
+    alice.git(&work, &["push", "-q", &url, "main"]);
+
+    let dest = tmp.path().join("bob-clone");
+    bob.git(tmp.path(), &["clone", "-q", &url, &dest.to_string_lossy()]);
+    write(&dest, "README", b"bob\n");
+    bob.git(&dest, &["commit", "-qam", "feat: bob"]);
+    bob.git(&dest, &["push", "-q", &url, "main"]);
+    let bobs = bob.git(&dest, &["rev-parse", "HEAD"]);
+
+    alice.git(&work, &["fetch", "-q", &format!("{url}/{bob_nid}"), "main"]);
+    assert_eq!(alice.git(&work, &["rev-parse", "FETCH_HEAD"]), bobs);
+}
