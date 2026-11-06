@@ -42,6 +42,9 @@ pub enum Cmd {
     /// Collaborative-object ops: post one, list verified ones.
     #[command(subcommand)]
     Op(crate::op::OpCmd),
+    /// Accountable escrow: init, appoint, deposit, run the agent, audit.
+    #[command(subcommand)]
+    Escrow(crate::escrow::EscrowCmd),
 }
 
 #[derive(Debug, Subcommand)]
@@ -394,6 +397,12 @@ pub fn run(cli: &Cli) -> Result<()> {
     if let Cmd::Keys(k) = &cli.cmd {
         return keys_cmd(k);
     }
+    if let Some(r) = match &cli.cmd {
+        Cmd::Escrow(e) => crate::escrow::local(e, &home()),
+        _ => None,
+    } {
+        return r;
+    }
     crate::block_on(async {
         let (a, cfg) = backend::connect().await?;
         match &cli.cmd {
@@ -405,6 +414,7 @@ pub fn run(cli: &Cli) -> Result<()> {
             Cmd::Status { repo } => status_cmd(&a, &cfg, repo).await,
             Cmd::Fund(f) => fund_cmd(&a, &cfg, f).await,
             Cmd::Op(o) => crate::op::run(&a, &cfg, o).await,
+            Cmd::Escrow(e) => crate::escrow::run(&a, &cfg, e).await,
         }
     })?
 }

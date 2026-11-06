@@ -20,6 +20,7 @@ path = "src/bin/arkiv-git.rs"
 [dependencies]
 alloy-signer-local = "2.5"
 arkiv-git-core = { path = "../arkiv-git-core" }
+arkiv-git-escrow = { path = "../arkiv-git-escrow" }
 arkiv-git-store = { path = "../arkiv-git-store", features = ["fake"] }
 arkiv-git-sync = { path = "../arkiv-git-sync", features = ["fake"] }
 clap = { version = "4", features = ["derive"] }
