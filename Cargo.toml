@@ -8,6 +8,7 @@ members = [
   "crates/arkiv-git-sync",
   "crates/arkiv-git-escrow",
   "crates/arkiv-git-cli",
+  "crates/arkiv-git-mcp",
   "crates/arkiv-git-program",
   "crates/arkiv-git-private",
   "crates/arkiv-git-zk-core",

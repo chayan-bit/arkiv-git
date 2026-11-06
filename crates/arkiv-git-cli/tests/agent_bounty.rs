@@ -17,7 +17,10 @@ use common::programs::*;
 use serde_json::{Value, json};
 
 const TGLM: u128 = 1_000_000_000_000_000_000;
-const FIXTURES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../arkiv-git-zk/tests/fixtures");
+const FIXTURES: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../arkiv-git-zk/tests/fixtures"
+);
 
 fn first_word<'a>(out: &'a str, key: &str) -> &'a str {
     field(out, key).split_whitespace().next().unwrap_or("")
