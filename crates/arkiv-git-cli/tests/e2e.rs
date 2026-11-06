@@ -246,3 +246,57 @@ fn errors_map_to_git_and_exit_codes() {
         String::from_utf8_lossy(&cloned.stderr)
     );
 }
+
+#[test]
+fn private_repo_members_push_and_clone_outsiders_get_not_member() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let log = tmp.path().join("chain.log");
+    let [alice, bob, carol] = ["alice", "bob", "carol"].map(|n| User::new(tmp.path(), n, &log));
+    for u in [&alice, &bob, &carol] {
+        fund(&log, field(&u.arkiv(&["keys", "init"]), "wallet:"));
+    }
+    let url = field(
+        &alice.arkiv(&["init", "--private", "--name", "secret"]),
+        "url:",
+    )
+    .to_owned();
+    let kp = field(&bob.arkiv(&["member", "keypackage"]), "key package:").to_owned();
+    let added = alice.arkiv(&[
+        "member",
+        "add",
+        "--repo",
+        &url,
+        "--key-package",
+        &kp,
+        "--role",
+        "read",
+    ]);
+    assert!(added.contains("as Read"), "{added}");
+    assert!(
+        alice
+            .arkiv(&["member", "list", "--repo", &url])
+            .contains("Admin")
+    );
+
+    let work = tmp.path().join("work");
+    alice.git(tmp.path(), &["init", "-q", &work.to_string_lossy()]);
+    write(&work, "README", b"private\n");
+    alice.git(&work, &["add", "-A"]);
+    alice.git(&work, &["commit", "-q", "-m", "feat: first"]);
+    alice.git(&work, &["push", "-q", &url, "main"]);
+
+    let dest = tmp.path().join("bob-clone");
+    bob.git(tmp.path(), &["clone", "-q", &url, &dest.to_string_lossy()]);
+    assert_eq!(
+        std::fs::read(dest.join("README")).expect("read"),
+        b"private\n"
+    );
+    write(&dest, "README", b"bob\n");
+    bob.git(&dest, &["commit", "-qam", "feat: bob"]);
+    let denied = bob.run("git", &dest, &["push", "-q", &url, "main"]);
+    assert!(String::from_utf8_lossy(&denied.stderr).contains("E_ROLE_DENIED"));
+
+    let out = carol.run("git", tmp.path(), &["clone", "-q", &url, "carol-clone"]);
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("E_NOT_MEMBER"));
+}

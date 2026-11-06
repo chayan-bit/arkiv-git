@@ -20,6 +20,8 @@ pub struct Session<'a, A: Arkiv> {
     repo: Option<Repo>,
     view: Option<View>,
     dry_run: bool,
+    /// Why this user may not push (a private repo role), reported at `list for-push`.
+    push_denied: Option<arkiv_git_sync::SyncError>,
 }
 
 /// What the main loop does after a command.
@@ -50,7 +52,13 @@ impl<'a, A: Arkiv> Session<'a, A> {
             repo: None,
             view: None,
             dry_run: false,
+            push_denied: None,
         }
+    }
+
+    pub fn deny_push(mut self, why: Option<arkiv_git_sync::SyncError>) -> Self {
+        self.push_denied = why;
+        self
     }
 
     fn repo(&mut self) -> Result<&Repo> {
@@ -91,6 +99,9 @@ impl<'a, A: Arkiv> Session<'a, A> {
     async fn list(&mut self, for_push: bool, out: &mut impl Write) -> Result<()> {
         let refs = match for_push {
             true => {
+                if let Some(e) = self.push_denied.take() {
+                    return Err(e.into());
+                }
                 let nid = Keys::require(&self.cfg.home)?.nid();
                 let view = self.sync([nid].into()).await?;
                 let refs = own_refs(&view, &nid);

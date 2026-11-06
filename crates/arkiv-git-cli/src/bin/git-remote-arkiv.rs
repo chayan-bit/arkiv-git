@@ -1,6 +1,6 @@
 //! `git-remote-arkiv <remote> <url>`: git runs this for `arkiv::<rid>` and `arkiv://<rid>`.
 
-use arkiv_git_cli::{CliError, backend, block_on, helper};
+use arkiv_git_cli::{CliError, backend, block_on, helper, member};
 use arkiv_git_sync::ids::parse_url;
 
 fn session(remote: &str, url: &str) -> Result<(), CliError> {
@@ -9,11 +9,7 @@ fn session(remote: &str, url: &str) -> Result<(), CliError> {
     block_on(async {
         let (a, mut cfg) = backend::connect().await?;
         cfg.extra_peers = peers;
-        let stdin = std::io::stdin();
-        let mut out = std::io::stdout();
-        helper::Session::new(&a, cfg, url)
-            .serve(&mut stdin.lock(), &mut out)
-            .await
+        member::serve(&a, cfg, url).await
     })?
 }
 
