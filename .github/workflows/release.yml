@@ -2,6 +2,7 @@ name: release
 on:
   push:
     tags: ["v*"]
+    branches: [ci/release]
   workflow_dispatch:
 
 env:
