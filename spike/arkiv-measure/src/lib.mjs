@@ -1,6 +1,6 @@
 // Shared plumbing for the Arkiv measurement probes: env/key handling, clients, raw ABI encoders, helpers.
 // TESTNET ONLY: the chain id is asserted against Rabdi before anything is sent.
-import { existsSync, writeFileSync } from "node:fs"
+import { appendFileSync, existsSync, writeFileSync } from "node:fs"
 import { randomBytes } from "node:crypto"
 import { createPublicClient, createWalletClient, randomSalt } from "@arkiv-network/sdk"
 import { rabdi } from "@arkiv-network/sdk/chains"
@@ -102,6 +102,7 @@ export function makeReport() {
   const rows = []
   const add = (probe, key, value, label) => {
     rows.push({ probe, key, value, label })
+    if (process.env.ROWS_FILE) appendFileSync(process.env.ROWS_FILE, JSON.stringify({ probe, key, value, label }, (_, x) => (typeof x === "bigint" ? x.toString() : x)) + "\n")
     const v = typeof value === "object" ? JSON.stringify(value, (_, x) => (typeof x === "bigint" ? x.toString() : x)) : value
     console.log(`[${label}] ${probe}.${key} = ${v}`)
   }

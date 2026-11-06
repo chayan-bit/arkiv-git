@@ -11,7 +11,7 @@ import { queryProbes } from "./readonly.mjs"
 import { throughputProbe } from "./throughput.mjs"
 
 export const MIN_BALANCE_WEI = 40_000_000_000_000_000n // 0.04 tGLM: ladder + extend + patch + expiry + a small burst
-const MAX_SPEND_WEI = 90_000_000_000_000_000n // hard stop for this run
+const MAX_SPEND_WEI = 60_000_000_000_000_000n // hard stop for this run: 0.0163 tGLM went on an aborted first run, coordinator total budget is 0.08
 const MAX_RAW_PAYLOAD = 130_336 // largest single bytes attr that passed the RPC edge (see readonly.mjs edgeSizeProbe)
 
 export async function runFunded(ctx) {
@@ -21,7 +21,7 @@ export async function runFunded(ctx) {
   const created = []
   let spent = 0n
   const track = async (txHash, label) => {
-    const rc = await c.waitForTransactionReceipt({ hash: txHash })
+    const rc = await c.waitForTransactionReceipt({ hash: txHash, timeout: 60_000 })
     const fee = rc.gasUsed * rc.effectiveGasPrice
     spent += fee
     if (spent > MAX_SPEND_WEI) throw new Error(`spend cap hit: ${tglm(spent)} tGLM`)
@@ -48,11 +48,15 @@ export async function runFunded(ctx) {
 
   // Each section is isolated: one failure is reported and the rest still run.
   const st = {}
-  const step = async (name, fn) => {
+  const step = async (name, fn, ms = 240_000) => {
+    console.log(`-- step ${name}`)
+    let timer
     try {
-      await fn()
+      await Promise.race([fn(), new Promise((_, rej) => { timer = setTimeout(() => rej(new Error(`step timed out after ${ms} ms`)), ms) })])
     } catch (e) {
       r.add("error", name, errText(e), "MEASURED")
+    } finally {
+      clearTimeout(timer)
     }
   }
 
@@ -75,6 +79,17 @@ export async function runFunded(ctx) {
         })),
         "MEASURED",
       )
+    })
+    await step("estimateVsReceipt", async () => {
+      // Same raw create estimated, then mined: compares eth_estimateGas with the gas the receipt shows.
+      const rows = []
+      for (const kib of [4, 16, 64]) {
+        const data = createCalldata({ attributes: [attr.str("tag", run, true), attr.bytes("payload", randomPayload(kib * KIB))], lifetime: BLOCKS_PER_DAY })
+        const est = await c.estimateGas({ account: account.address, to, data })
+        const rc = await track(await w.sendTransaction({ to, data, gas: (est * 12n) / 10n }), `raw_create_${kib}KiB`)
+        rows.push({ kib, estimate: Number(est), gasUsed: rc.gasUsed, diff: rc.gasUsed - Number(est), fee_tGLM: rc.fee_tGLM, effectiveGasPrice: rc.effectiveGasPrice })
+      }
+      r.add("fee", "estimate_vs_receipt", rows, "MEASURED")
     })
     await step("maxCreate", async () => {
       // 2. Largest create the RPC edge lets through (single bytes attribute, raw path).

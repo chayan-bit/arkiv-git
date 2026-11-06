@@ -1,0 +1,149 @@
+{
+  "address": "0x201b7FB60f8f4B221afCEcEcAeeB6d09Af42f15A",
+  "mode": "funded2",
+  "rows": [
+    {
+      "probe": "account",
+      "key": "balance_tGLM",
+      "value": 0.03861141138033854,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "extend",
+      "key": "plain_transfer_gas",
+      "value": 21000,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "extend",
+      "key": "non_owner_extend_permissionless",
+      "value": {
+        "ok": true,
+        "stage": "receipt",
+        "label": "sponsor_extend_flagged",
+        "block": 292366,
+        "gasUsed": 46469,
+        "fee_tGLM": 0.000046469,
+        "status": "success"
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "extend",
+      "key": "non_owner_extend_plain",
+      "value": {
+        "ok": false,
+        "stage": "estimate",
+        "error": "execution reverted"
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "extend",
+      "key": "non_owner_extend_via_sdk",
+      "value": {
+        "ok": true,
+        "ms": 6585,
+        "newExpiresAt": 378770
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "extend",
+      "key": "owner_shorten",
+      "value": "Transaction failed: entity 0x33cc0f0b…69b32f already expires at block 378766, so extending it to 292381 would shorten its life",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "extend",
+      "key": "16KiB_1d_to_2d",
+      "value": {
+        "gasUsed": 53901,
+        "fee_tGLM": 0.000053901
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "extend",
+      "key": "flagged_entity_after_sponsor_extend",
+      "value": {
+        "data": [
+          {
+            "key": "0x33cc0f0bbda3adff5728efb4a85ed63f908bf78193e4be51eafe961a1869b32f",
+            "owner": "0x201b7fb60f8f4b221afcececaeeb6d09af42f15a",
+            "expiresAt": "0x5c78e"
+          }
+        ],
+        "blockNumber": "0x4761a"
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "throughput",
+      "key": "pool_limit_self_transfers",
+      "value": {
+        "requested": 200,
+        "acceptedPerRound": [
+          200
+        ],
+        "rejections": {},
+        "confirmed": 156,
+        "txsPerBlock": {
+          "292380": 4,
+          "292381": 2,
+          "292382": 2,
+          "292383": 2,
+          "292384": 2,
+          "292385": 2,
+          "292386": 2,
+          "292387": 2,
+          "292388": 2,
+          "292389": 2,
+          "292390": 2,
+          "292391": 2,
+          "292392": 2,
+          "292393": 2,
+          "292394": 2,
+          "292395": 2,
+          "292396": 2,
+          "292397": 2,
+          "292398": 2,
+          "292399": 2,
+          "292400": 3,
+          "292401": 3,
+          "292402": 2,
+          "292403": 2,
+          "292404": 3,
+          "292405": 4,
+          "292406": 2,
+          "292407": 4,
+          "292408": 3,
+          "292409": 3,
+          "292410": 3,
+          "292411": 4,
+          "292412": 5,
+          "292413": 5,
+          "292414": 5,
+          "292415": 7,
+          "292416": 2,
+          "292417": 7,
+          "292418": 9,
+          "292419": 9,
+          "292420": 10,
+          "292421": 7,
+          "292422": 12
+        },
+        "maxTxsInOneBlock": 12,
+        "headBeforeSend": 292379,
+        "fee_tGLM": 0.003276000003276
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "fee",
+      "key": "pass2_spent_tGLM",
+      "value": 0.004703090003276,
+      "label": "MEASURED"
+    }
+  ]
+}

@@ -63,5 +63,8 @@ Funded sections are independent: a failure in one is recorded as `error.<section
 
 ## Status
 
-Read-only probes were run on 2026-11-06 against Rabdi.
-The funded path was only smoke-tested with an empty balance (it fails at the first write with insufficient funds and the other sections report their errors); it has not yet run against the chain with funds.
+Read-only probes and the funded probes were run on 2026-11-06 against Rabdi; results are in `docs/p0/arkiv-limits.md` and `results/*.json`.
+`funded` (pass 1) covers the size ladder, estimate vs receipt, the largest create, owner extension and the 24 KiB burst.
+`funded2` reruns the sections that stalled when the anonymous query budget ran out (sponsor extension, patch, expiry, queries) and adds a 48 x 1 KiB burst and a 200-transfer flood; `ONLY=sponsor,update,expiry,queries,poolLimit,burst` picks sections.
+Reads can hit HTTP 429 `ANON_COST_LIMITED`; `funded2` waits for the budget to return before any SDK read, because the SDK hangs on it.
+Funded runs spend real testnet tokens (the whole campaign used 0.0674 tGLM); stale entities simply expire after one day.

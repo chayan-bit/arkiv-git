@@ -1,0 +1,215 @@
+{
+  "address": "0x201b7FB60f8f4B221afCEcEcAeeB6d09Af42f15A",
+  "mode": "funded2",
+  "rows": [
+    {
+      "probe": "account",
+      "key": "balance_tGLM",
+      "value": 0.046696216386383695,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "extend",
+      "key": "plain_transfer_gas",
+      "value": 21000,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "error",
+      "key": "sponsor",
+      "value": "Cannot mix BigInt and other types, use explicit conversions",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "update",
+      "key": "patch_semantics",
+      "value": {
+        "sameKey": true,
+        "expiryBefore": 335481,
+        "expiryAfter": 335481,
+        "expiryUnchanged": true,
+        "updatedAtBefore": 292281,
+        "updatedAtAfter": 292284,
+        "payloadReplaced": true,
+        "seqNow": "2",
+        "indexFollowsPatch_count_seq2": 1,
+        "patch_2to3KiB": {
+          "gasUsed": 152730,
+          "fee_tGLM": 0.00015273
+        },
+        "patch_shrink_3to1KiB": {
+          "gasUsed": 68270,
+          "fee_tGLM": 0.00006827
+        }
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "expiry",
+      "key": "short_lived",
+      "value": {
+        "lifetimeBlocks": 20,
+        "createdBlock": 292291,
+        "expiresAt": 292311,
+        "goneObservedAtBlock": 292313,
+        "blocksAfterExpiresAt": 2,
+        "polls": 13,
+        "lastSeenAliveAtHead": 292309,
+        "firstSeenGoneAtHead": 292309,
+        "getEntityAfter": "No live entity with key 0x330591443b04c79ed3ace816afa9068ab827b1aaacab7a278a69205990f94d41. It was never created, or it has been deleted or has expired.",
+        "extendAfter": "Transaction failed: no entity 0x33059144…f94d41 — it may have been deleted, or have expired",
+        "createTxCalldataStillOnChain": "2180 bytes"
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "budget_state_before_probes",
+      "value": {
+        "status": 200,
+        "cost": "10",
+        "quotaUsedPct": null,
+        "ratelimit": "limit=2000, remaining=1991, reset=8"
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "count_all_ms_median_of_5",
+      "value": 525,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "entities_on_chain",
+      "value": 130774,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "page100_key_only_ms_median_of_5",
+      "value": 632,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "owner_eq_count_ms_median_of_5",
+      "value": 272,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "expiresAt_range_ms_median_of_5",
+      "value": 368,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "or_two_ranges_ms_median_of_5",
+      "value": 282,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "order_by_expiresAt_desc_ms_median_of_5",
+      "value": 593,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "annotation_eq_str_ms_median_of_5",
+      "value": 251,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "annotation_prefix_ms_median_of_5",
+      "value": 258,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "limit_101",
+      "value": "limit 101 exceeds the node maximum of 100",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "NOT_complement",
+      "value": "count: store: NotImplemented",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "not_equal_operator",
+      "value": "!= is not part of the query language — write NOT (attr = value) for the complement",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "atBlock_old",
+      "value": "block 1 is unavailable: state for this block is not retained",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "atBlock_head_minus_1",
+      "value": "block 292323 is unavailable: state for this block is not retained",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "query",
+      "key": "offset_past_end",
+      "value": "accepted",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "throughput",
+      "key": "burst",
+      "value": {
+        "requested": 48,
+        "payloadKiB": 1,
+        "confirmed": 48,
+        "acceptedPerRound": [
+          48
+        ],
+        "rejectionMessages": [],
+        "firstBlock": 292326,
+        "blocksSpanned": 4,
+        "perBlock": {
+          "292326": {
+            "txs": 13,
+            "gas": 1637346
+          },
+          "292327": {
+            "txs": 14,
+            "gas": 1763052
+          },
+          "292328": {
+            "txs": 16,
+            "gas": 2015076
+          },
+          "292329": {
+            "txs": 5,
+            "gas": 629682
+          }
+        },
+        "headBeforeSend": 292324,
+        "bytesConfirmed": 49152,
+        "wallSeconds": 10.453,
+        "bytesPerSecondWall": 4702,
+        "bytesPerSecondChain": 6144,
+        "maxBytesInOneBlock": 16384,
+        "medianGasPerTx": 125946,
+        "feeTotal_tGLM": 0.006045156006045156
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "fee",
+      "key": "pass2_spent_tGLM",
+      "value": 0.007063633006045156,
+      "label": "MEASURED"
+    }
+  ]
+}

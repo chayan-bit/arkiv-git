@@ -1,0 +1,182 @@
+{
+  "address": "0x201b7FB60f8f4B221afCEcEcAeeB6d09Af42f15A",
+  "mode": "funded",
+  "rows": [
+    {
+      "probe": "account",
+      "key": "balance_tGLM",
+      "value": 0.083805969,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "fee",
+      "key": "create_1day_by_size",
+      "value": [
+        {
+          "kib": 1,
+          "gasUsed": 146640,
+          "fee_tGLM": 0.00014664,
+          "lifetime_blocks": 43200
+        },
+        {
+          "kib": 4,
+          "gasUsed": 229378,
+          "fee_tGLM": 0.000229378,
+          "lifetime_blocks": 43200
+        },
+        {
+          "kib": 16,
+          "gasUsed": 699958,
+          "fee_tGLM": 0.000699958,
+          "lifetime_blocks": 43200
+        },
+        {
+          "kib": 64,
+          "gasUsed": 2690005,
+          "fee_tGLM": 0.002690005,
+          "lifetime_blocks": 43200
+        }
+      ],
+      "label": "MEASURED"
+    },
+    {
+      "probe": "fee",
+      "key": "estimate_vs_receipt",
+      "value": [
+        {
+          "kib": 4,
+          "estimate": 213382,
+          "gasUsed": 210544,
+          "diff": -2838,
+          "fee_tGLM": 0.000210544,
+          "effectiveGasPrice": 1000000000
+        },
+        {
+          "kib": 16,
+          "estimate": 701322,
+          "gasUsed": 694642,
+          "diff": -6680,
+          "fee_tGLM": 0.000694642,
+          "effectiveGasPrice": 1000000000
+        },
+        {
+          "kib": 64,
+          "estimate": 2707073,
+          "gasUsed": 2684599,
+          "diff": -22474,
+          "fee_tGLM": 0.002684599,
+          "effectiveGasPrice": 1000000000
+        }
+      ],
+      "label": "MEASURED"
+    },
+    {
+      "probe": "limits",
+      "key": "max_create_on_chain",
+      "value": {
+        "payload_bytes": 130272,
+        "label": "create_max_raw",
+        "block": 291576,
+        "gasUsed": 5303300,
+        "effectiveGasPrice": 1000000000,
+        "fee_tGLM": 0.0053033,
+        "status": "success"
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "extend",
+      "key": "owner_extend_1d_to_2d",
+      "value": {
+        "gasUsed": 46469,
+        "fee_tGLM": 0.000046469,
+        "newExpiresAt": 377986,
+        "landed_block": 291586,
+        "blocks_from_landing": 86400
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "extend",
+      "key": "plain_transfer_gas",
+      "value": 21000,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "error",
+      "key": "extend",
+      "value": "step timed out after 240000 ms",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "error",
+      "key": "update",
+      "value": "step timed out after 240000 ms",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "error",
+      "key": "expiry",
+      "value": "step timed out after 240000 ms",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "throughput",
+      "key": "burst",
+      "value": {
+        "requested": 20,
+        "payloadKiB": 24,
+        "confirmed": 20,
+        "acceptedPerRound": [
+          20
+        ],
+        "rejectionMessages": [],
+        "firstBlock": 291940,
+        "blocksSpanned": 2,
+        "perBlock": {
+          "291940": {
+            "txs": 16,
+            "gas": 16423772
+          },
+          "291941": {
+            "txs": 4,
+            "gas": 4106108
+          }
+        },
+        "headBeforeSend": 291938,
+        "bytesConfirmed": 491520,
+        "wallSeconds": 5.831,
+        "bytesPerSecondWall": 84294,
+        "bytesPerSecondChain": 122880,
+        "maxBytesInOneBlock": 393216,
+        "medianGasPerTx": 1026527,
+        "feeTotal_tGLM": 0.02060868461361631
+      },
+      "label": "MEASURED"
+    },
+    {
+      "probe": "error",
+      "key": "queries",
+      "value": "step timed out after 240000 ms",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "cleanup",
+      "key": "delete_batch_error",
+      "value": "Transaction failed: no entity 0xc6db301c…d292ca — it may have been deleted, or have expired",
+      "label": "MEASURED"
+    },
+    {
+      "probe": "cleanup",
+      "key": "delete_8_entities_gas_total",
+      "value": 0,
+      "label": "MEASURED"
+    },
+    {
+      "probe": "fee",
+      "key": "total_spent_tGLM",
+      "value": 0.03415622161361631,
+      "label": "MEASURED"
+    }
+  ]
+}
