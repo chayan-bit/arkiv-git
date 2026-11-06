@@ -397,11 +397,13 @@ async fn init_cmd<A: Arkiv>(a: &A, cfg: &Config, i: &InitArgs) -> Result<()> {
 }
 
 async fn pin_cmd<A: Arkiv>(a: &A, cfg: &Config, p: &program::PinArgs) -> Result<()> {
-    let (rid, keys, pin) = (
+    let (rid, keys, (pin, src)) = (
         rid_of(&p.repo)?,
         Keys::require(&cfg.home)?,
         program::pin_for(&p.file)?,
     );
+    let op = arkiv_git_sync::program::publish(a, cfg, &keys, &rid, &pin.engine, &src).await?;
+    println!("published program source in op {}", hex32(&op));
     let st = State::default();
     let h = identity::propose(a, cfg, &keys, &rid, &st, |b: &IdBody| IdBody {
         program: Some(pin),
@@ -428,6 +430,7 @@ pub fn run(cli: &Cli) -> Result<()> {
         match &cli.cmd {
             Cmd::Keys(_) | Cmd::Program(ProgramCmd::Check(_)) => Ok(()),
             Cmd::Program(ProgramCmd::Pin(p)) => pin_cmd(&a, &cfg, p).await,
+            Cmd::Program(ProgramCmd::Status { repo }) => program::status(&a, &rid_of(repo)?).await,
             Cmd::Init(i) => init_cmd(&a, &cfg, i).await,
             Cmd::Id(c) => id_cmd(&a, &cfg, c).await,
             Cmd::Keepalive(k) => keepalive_cmd(&a, &cfg, k).await,

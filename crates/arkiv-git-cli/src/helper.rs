@@ -146,6 +146,11 @@ impl<'a, A: Arkiv> Session<'a, A> {
             &Git::work(None),
             updates,
         )?;
+        // Refuse locally, before any gas is spent, a push the pinned program rejects.
+        if let Err(e) = arkiv_git_sync::program::check_push(&p.view, &keys.nid(), &p.pending) {
+            p.discard(&p.pending);
+            return Err(e.into());
+        }
         if !self.dry_run {
             return Ok(p.run().await?);
         }
