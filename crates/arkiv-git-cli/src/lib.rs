@@ -4,6 +4,7 @@ pub mod backend;
 pub mod cmd;
 pub mod helper;
 pub mod units;
+pub mod zk;
 
 use arkiv_git_core::ErrorCode;
 use arkiv_git_store::StoreError;

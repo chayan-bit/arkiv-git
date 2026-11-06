@@ -39,6 +39,9 @@ pub enum Cmd {
     Status { repo: String },
     /// Print the wallet address, its balance and an estimate of what a push needs.
     Fund(FundArgs),
+    /// Zero-knowledge receipts for sealed patches (offline).
+    #[command(subcommand)]
+    Zk(crate::zk::ZkCmd),
 }
 
 #[derive(Debug, Subcommand)]
@@ -391,10 +394,13 @@ pub fn run(cli: &Cli) -> Result<()> {
     if let Cmd::Keys(k) = &cli.cmd {
         return keys_cmd(k);
     }
+    if let Cmd::Zk(z) = &cli.cmd {
+        return crate::zk::zk_cmd(z);
+    }
     crate::block_on(async {
         let (a, cfg) = backend::connect().await?;
         match &cli.cmd {
-            Cmd::Keys(_) => Ok(()),
+            Cmd::Keys(_) | Cmd::Zk(_) => Ok(()),
             Cmd::Init(i) => init_cmd(&a, &cfg, i).await,
             Cmd::Id(c) => id_cmd(&a, &cfg, c).await,
             Cmd::Keepalive(k) => keepalive_cmd(&a, &cfg, k).await,
