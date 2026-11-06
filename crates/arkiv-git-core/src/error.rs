@@ -32,6 +32,10 @@ pub enum ErrorCode {
     InconsistentView,
     Paging,
     WrongChain,
+    /// P2: the caller holds no key for a private repo.
+    NotMember,
+    /// P2: the caller's role in a private repo does not allow the operation.
+    RoleDenied,
     Internal,
 }
 
@@ -64,6 +68,8 @@ impl ErrorCode {
             InconsistentView => "E_INCONSISTENT_VIEW",
             Paging => "E_PAGING",
             WrongChain => "E_WRONG_CHAIN",
+            NotMember => "E_NOT_MEMBER",
+            RoleDenied => "E_ROLE_DENIED",
             Internal => "E_INTERNAL",
         }
     }

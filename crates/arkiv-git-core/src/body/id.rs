@@ -28,7 +28,7 @@ pub struct IdBody {
     pub delegates: Vec<Nid>,
     #[n(8)]
     pub threshold: u64,
-    /// 0 public; 1 private (reserved for P2, unsupported here).
+    /// 0 public; 1 private (P2: every entity of the repo is sealed, see arkiv-git-private).
     #[n(9)]
     pub visibility: u64,
     #[n(10)]
@@ -121,14 +121,10 @@ impl Body for IdBody {
             field("id", "default_branch", "not a valid ref component"),
         )?;
         self.validate_delegates()?;
-        match self.visibility {
-            0 => Ok(()),
-            1 => Err(FormatError::Unsupported {
-                what: "identity visibility",
-                value: 1,
-            }),
-            _ => Err(field("id", "visibility", "unknown value")),
-        }?;
+        require(
+            matches!(self.visibility, 0 | 1),
+            field("id", "visibility", "unknown value"),
+        )?;
         require(
             self.lang.as_deref().is_none_or(lang_ok),
             field("id", "lang", "1..32 B lowercase"),

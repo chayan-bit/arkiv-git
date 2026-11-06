@@ -69,4 +69,9 @@ pub trait Arkiv: Send + Sync {
         &self,
         h: TxHash,
     ) -> impl Future<Output = Result<Option<Receipt>, StoreError>> + Send;
+    /// Rewrites one tx's ops before they are priced and signed. Identity by default;
+    /// P2 private repos seal create ops here (`arkiv-git-private`). Must be idempotent.
+    fn seal_ops(&self, ops: Vec<Operation>) -> Result<Vec<Operation>, StoreError> {
+        Ok(ops)
+    }
 }
