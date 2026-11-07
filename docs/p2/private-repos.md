@@ -1,7 +1,7 @@
 # P2: private repos
 
 Date: 2026-11-07.
-Crate: `crates/arkiv-git-private`.
+Crate: `crates/charter-private`.
 
 ## What a private repo is
 
@@ -16,15 +16,15 @@ Push, clone and every core verification rule run unchanged: sealing happens at t
 Key agreement is the X-Wing hybrid KEM (ML-KEM-768 + X25519), signatures inside MLS are ML-DSA-44.
 OpenMLS is pinned to main at `28369d5b48608bef4ddf8371d91503b0f3852bb3` with `draft-ietf-mls-pq-ciphersuites`, on the libcrux provider, as gated in `docs/p0/openmls-xwing.md`.
 The release 0.9.2 is not used because it carries RUSTSEC-2026-0331.
-ML-DSA-44 inside MLS is not yet confirmed, so the suite is the single constant `arkiv_git_private::SUITE`, and moving to 0x004E (Ed25519 signatures) is a one-line change.
+ML-DSA-44 inside MLS is not yet confirmed, so the suite is the single constant `charter_private::SUITE`, and moving to 0x004E (Ed25519 signatures) is a one-line change.
 The suite code point is recorded in the body of the repo's `group` marker entity.
 
 ## Keys
 
 The epoch content key is `export_secret("arkiv-git content", rid, 32)` of the current epoch.
 The id-blinding key is `export_secret("arkiv-git id", rid, 32)` of the creating epoch and never rotates, so blinded queries keep matching across epochs.
-Members keep every epoch key they ever held in a keyring file, `$ARKIV_GIT_HOME/private/<rid hex>.json`, mode 600.
-OpenMLS state (the ML-DSA-44 signature key, key package secrets and groups) lives in `$ARKIV_GIT_HOME/private/mls.json`, mode 600.
+Members keep every epoch key they ever held in a keyring file, `$CHARTER_HOME/private/<rid hex>.json`, mode 600.
+OpenMLS state (the ML-DSA-44 signature key, key package secrets and groups) lives in `$CHARTER_HOME/private/mls.json`, mode 600.
 Each commit and welcome carries the keyring (id key, all epoch keys so far, roles) sealed under the new epoch key, so a new member can read history and every member learns role changes.
 A removed member cannot open that lockbox, because it cannot derive the new epoch key.
 
@@ -72,11 +72,11 @@ Repo programs are expected to call these through obligations later.
 
 ## CLI
 
-`arkiv-git init --private` creates a private repo.
-`arkiv-git member keypackage` publishes a key package and prints its id.
-`arkiv-git member add --repo R --key-package <id> --role write` adds a member.
-`arkiv-git member remove --repo R --member <nid>` removes one.
-`arkiv-git member list --repo R` prints nids and roles.
+`chart init --private` creates a private repo.
+`chart member keypackage` publishes a key package and prints its id.
+`chart member add --repo R --key-package <id> --role write` adds a member.
+`chart member remove --repo R --member <nid>` removes one.
+`chart member list --repo R` prints nids and roles.
 `git push` and `git clone arkiv::<rid>` on a private repo work for members (a new member joins on first use) and fail with `E_NOT_MEMBER` for anyone else.
 
 ## Known limits

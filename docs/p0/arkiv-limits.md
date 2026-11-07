@@ -1,5 +1,7 @@
 # Arkiv limits and costs (P0 spike)
 
+Commands below were recorded before the rename to Charter; `arkiv-git` is now `chart`.
+
 Measured and read on 2026-11-06 against the Rabdi testnet (chain id 7794095) and the local Arkiv node source at v1.0.1 (`~/Code/projects/arkiv-contrib/arkiv`, commit `2a3526d`).
 Labels: SOURCE-VERIFIED (read in code), DOCS-CLAIMED (read in docs only), MEASURED (observed on the live testnet by `spike/arkiv-measure`), DERIVED (computed from MEASURED or SOURCE-VERIFIED numbers), UNKNOWN.
 Gas numbers marked MEASURED come from `eth_estimateGas`, which the node executes in full, so they equal what a funded transaction uses.

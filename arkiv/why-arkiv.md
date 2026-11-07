@@ -2,7 +2,7 @@
 
 Imagine the same git hosting product with a Postgres table of repos, signed refs and pack chunks behind an API.
 Everything would work on a good day.
-These are the things users would lose, and what arkiv-git does about each one.
+These are the things users would lose, and what Charter does about each one.
 
 ## 1. Rollback protection
 

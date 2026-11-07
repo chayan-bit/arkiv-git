@@ -1,5 +1,7 @@
 # Live Rabdi: multi-peer collaboration, quorum, rollback, programs and escrow
 
+Commands below were recorded before the rename to Charter; `arkiv-git` is now `chart`.
+
 Date: 2026-11-07.
 Network: Rabdi testnet, chain id 7794095, RPC https://rpc.rabdi.db-chain.testnet.arkiv.network, explorer https://rabdi.explorer.arkiv.network.
 Code: `crates/arkiv-git-cli/tests/rabdi_collab.rs` and `crates/arkiv-git-cli/tests/common/collab.rs` on `test/live-collab`.

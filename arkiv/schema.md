@@ -1,12 +1,12 @@
-# arkiv-git entity schema
+# Charter entity schema
 
-This is the full list of entity kinds arkiv-git writes to Arkiv, what each one is indexed by, who creates it, how long it lives, and which queries read it.
+This is the full list of entity kinds Charter writes to Arkiv, what each one is indexed by, who creates it, how long it lives, and which queries read it.
 It is a reading guide for the Arkiv judges; the normative spec is `docs/p1/design.md` section 2 and section 3.
 Every number here is taken from that design, from the P0 measurements in `docs/p0/arkiv-limits.md`, or from the code constants on `main`.
 
 ## Conventions shared by every kind
 
-- Namespace: every attribute name starts with `ag.` so arkiv-git entities never collide with other apps on the same chain.
+- Namespace: every attribute name starts with `ag.` so Charter entities never collide with other apps on the same chain.
 - Common attributes: `ag.kind` (`str`, indexed), `ag.v` (`u64`, entity layout version, currently 1, not indexed), `ag.body` (`bytes`, never indexable).
 - Every identifier attribute (`ag.rid`, `ag.nid`, `ag.h`, `ag.pack`, `ag.parent`, `ag.rev`, `ag.cob`) is `bytes32`, so private repos can later store a keyed hash of the value without changing the type or the index.
 - Attributes are query hints only.
@@ -16,10 +16,10 @@ Every number here is taken from that design, from the P0 measurements in `docs/p
   The owner key can still delete the entity or transfer its ownership (the node model in our test suite behaves this way; `$creator` stays the original address), which is why deletion is treated as a detectable denial of service by the completeness check below.
   `permissionlessExtension` means anyone can extend its lifetime but never change it, and the flag cannot be added after creation, so it is set on everything from the first write.
 - Other create parameters: `expiresAt = 0`, `minLifetime` from the lifetime column below, `salt` of 16 random bytes.
-  arkiv-git never predicts entity keys and never patches, transfers or deletes; every cross-reference is a content hash found by query.
+  Charter never predicts entity keys and never patches, transfers or deletes; every cross-reference is a content hash found by query.
 - Encoding of signed bodies: canonical CBOR (RFC 8949 deterministic), SHA-256 hashes, composite ML-DSA-65 + Ed25519 signatures inside a versioned envelope.
 - Block time is 2 s, so 30 days is 1,296,000 blocks and 182.5 days is 7,884,000 blocks, the maximum lifetime the node accepts.
-  Keepalive (`arkiv-git keepalive`) extends an entity to a fresh horizon counted from the landing block (default horizon 90 days, renewed when under 30 days remain).
+  Keepalive (`chart keepalive`) extends an entity to a fresh horizon counted from the landing block (default horizon 90 days, renewed when under 30 days remain).
 
 ## Who owns what: three addresses per repo
 
@@ -83,7 +83,7 @@ The control plane is small (about 0.9 to 1.1M gas per entity at the maximum life
 - Queries:
   - Root: `ag.kind = str('id') AND ag.h = bytes32(0x<rid>)`
   - Identity chain: `ag.rid = bytes32(0x<rid>) AND (ag.kind = str('id') OR ag.kind = str('idacc'))`, in creation order with offset paging and a count check
-  - Search by name: `ag.kind = str('id') AND ag.name = str('arkiv-git')`, or `ag.name STARTSWITH str('arkiv')`
+  - Search by name: `ag.kind = str('id') AND ag.name = str('charter')`, or `ag.name STARTSWITH str('arkiv')`
   - Search by language and licence: `ag.kind = str('id') AND ag.lang = str('rust') AND (ag.lic = str('MIT') OR ag.lic = str('Apache-2.0'))`
 
 ### `idacc` (identity acceptance)

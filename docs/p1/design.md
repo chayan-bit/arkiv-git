@@ -7,7 +7,7 @@ Labels as in P0: MEASURED (observed on Rabdi), SOURCE-VERIFIED (read in code), D
 
 ## 0. Scope, gate and fixed decisions
 
-P1 delivers a `git-remote-arkiv` helper, an `arkiv-git` CLI and a Rust client library.
+P1 delivers a `git-remote-arkiv` helper, a `chart` CLI and a Rust client library.
 P1 covers identity documents, per-peer signed refs, on-chain ref anchors, pack storage, lifetime keeping and search, for public repos only.
 P1 gate: (a) a 100 MiB repo pushed to Rabdi clones end to end into an empty machine state and passes `git fsck --full`; (b) a replayed old ref (old anchor and refs bytes re-posted, or the newest anchor withheld or expired) is rejected.
 
@@ -36,14 +36,14 @@ These change the design relative to `heartwood-reuse.md` section 8 and are load-
 3. `entityNonce(address)` works through `eth_call` to `0x4400000000000000000000000000000000000044` (selector `0x36917bfd`; MEASURED: returned 314 for a sample address whose tx count was 315).
    It counts every entity an address ever created, live or not, which gives an exact completeness check without logs or history (section 3.3).
 4. Anonymous `arkiv_query` is budget-limited: a single query in this session was refused with `ANON_COST_LIMITED` (MEASURED).
-   A 100 MiB clone needs about 110 queries, so P1 requires an access key (`ARKIV_GIT_ACCESS_KEY`) for real use and for the gate.
+   A 100 MiB clone needs about 110 queries, so P1 requires an access key (`CHARTER_ACCESS_KEY`) for real use and for the gate.
 5. EIP-1559 base fee: blocks above half of the 30M gas limit raise the base fee by up to 12.5 percent per block (`arkiv-limits.md` section 3).
    One pusher filling every block for 146 blocks would multiply the fee by about 1.125^146, so the writer paces itself at 40 percent of block gas (section 4.6).
 6. heartwood formats are Ed25519- and SHA-1-bound (`NodeId`, sigrefs `signature` blob, `RepoId`, identity `Doc::sign`).
    With ML-DSA they cannot be reused byte for byte, so P1 ports their semantics (canonical refs payload, root binding, parent pointer, majority identity acceptance, threshold canonical refs) into its own formats and depends on no heartwood crate (open question Q2).
 7. `permissionlessExtension` on anchors (decided) defeats P0's "monotone expiry" defence, because anyone can keep an old anchor alive after the head expires.
    P1 replaces that defence with the creator rule plus the `entityNonce` completeness check (section 3.3).
-8. The node workspace pins `rust-version = 1.97` and alloy `1.6` (primitives, sol-types) and `2.5` (provider, contract); the arkiv-git workspace must match to avoid duplicate alloy types.
+8. The node workspace pins `rust-version = 1.97` and alloy `1.6` (primitives, sol-types) and `2.5` (provider, contract); the Charter workspace must match to avoid duplicate alloy types.
 
 ## 2. Entities
 
@@ -86,7 +86,7 @@ Envelope = [
 SigMsg = "arkiv-git/v1/sig" || 0x00 || u8(kind) || u8(enc) || signer || body
 ```
 
-- Domain separation: the fixed prefix separates arkiv-git from every other use of the key, and `kind` inside `SigMsg` separates kinds, so an anchor signature never verifies as a refs signature.
+- Domain separation: the fixed prefix separates Charter from every other use of the key, and `kind` inside `SigMsg` separates kinds, so an anchor signature never verifies as a refs signature.
 - If the chosen scheme takes a FIPS 204 context string, pass `ctx = "arkiv-git/v1"` in addition; the message stays as above.
 - The signature covers `body` as stored, so in P2 (ciphertext body) anyone can still check authorship and spam without keys; whether P2 also signs the plaintext is a P2 decision.
 - Envelope overhead with ML-DSA-65: 1 + 1 + 1 + 1 + 34 + 3 + 3 + 3,309 = 3,353 B plus the body.
@@ -105,7 +105,7 @@ Rules for attributes:
 - Every identifier attribute (`ag.rid`, `ag.nid`, `ag.h`, `ag.pack`, `ag.parent`, `ag.rev`) is `bytes32`, so P2 can replace the value with `HMAC(k_repo, value)` without changing type or index.
 - Attributes are hints for queries only; after decoding, a client checks that each attribute equals the value derived from the signed body or envelope, and ignores the entity otherwise.
 - Every entity is created with `creationFlags = 3` (bit0 `readonly`, bit1 `permissionlessExtension`), `salt` = 16 random bytes, `expiresAt = 0`, and `minLifetime` from table 2.3.
-- arkiv-git never predicts entity keys and never patches, transfers or deletes an entity; every cross-reference is by content hash and found by query.
+- Charter never predicts entity keys and never patches, transfers or deletes an entity; every cross-reference is by content hash and found by query.
 - An entity from a tracked control address (section 3.1) with `ag.v` or envelope `v` or `enc` the client does not know fails closed with `E_UNSUPPORTED_VERSION`, because silently skipping a newer-format anchor would roll the client back; the same entity from any other creator is ignored.
 
 ### 2.2 Kinds
@@ -365,7 +365,7 @@ Evaluation:
    `R_{k+1}` is the candidate with the smallest effective position; all other candidates with the same parent are dead forever (no fork can revive).
 3. Repeat until no candidate reaches quorum; the last revision is the identity head.
 4. Any proposer may publish a revision, but only acceptances from the parent's delegates count.
-   A delegate with no bind for the repo gets `peer` and `bind_0` written by `arkiv-git id accept` in the same control tx as its `idacc`.
+   A delegate with no bind for the repo gets `peer` and `bind_0` written by `chart id accept` in the same control tx as its `idacc`.
 5. High-water mark: `head.rev >= hwm.id.rev` and the chain contains `hwm.id.hash`, else `E_STALE_IDENTITY`.
 6. The completeness check (3.3) for every delegate of the head covers identity entities too, so an expired newer revision fails closed.
 
@@ -420,7 +420,7 @@ Incremental fetch: with a high-water mark at seq `w`, the client queries only `a
 
 - Two valid anchors (or binds, or identity revisions by one proposer) with the same seq and different bytes, or a valid anchor with seq `k + 1` whose prev is not `h(A_k)`, are evidence that N signed conflicting histories.
 - The chain stays first-created-wins, which every client computes identically, so equivocation cannot split views; it can only mean the loser's push is ignored.
-- The client prints `warning: E_EQUIVOCATION peer <nid> seq <k>: entities <key1>, <key2>` on every fetch and lists it in `arkiv-git status`; it does not exclude the peer, because exclusion would let one bad push of a single-delegate repo make the repo unreadable.
+- The client prints `warning: E_EQUIVOCATION peer <nid> seq <k>: entities <key1>, <key2>` on every fetch and lists it in `chart status`; it does not exclude the peer, because exclusion would let one bad push of a single-delegate repo make the repo unreadable.
 - The expected remedy for an equivocating delegate is an identity revision removing it; P1 publishes no on-chain evidence entity.
 
 ### 3.8 Canonical refs
@@ -432,7 +432,7 @@ Incremental fetch: with a high-water mark at seq `w`, the client queries only `a
 
 ### 3.9 Local state and the high-water mark
 
-Layout under `$ARKIV_GIT_HOME` (default `~/.arkiv-git`):
+Layout under `$CHARTER_HOME` (default `~/.charter`):
 
 ```text
 keys/seed                       32 B master seed, mode 0600 (open question Q4)
@@ -604,9 +604,9 @@ DERIVED from the numbers above:
 Who extends what:
 
 - The pushing peer's tooling runs a keepalive pass for its own repo state after every push (cheap when nothing is near expiry).
-- Delegates are expected to run `arkiv-git keepalive` on a schedule (cron, CI); any sponsor may do the same with only a funded EVM key and no ML-DSA identity, because every entity is `permissionlessExtension`.
+- Delegates are expected to run `chart keepalive` on a schedule (cron, CI); any sponsor may do the same with only a funded EVM key and no ML-DSA identity, because every entity is `permissionlessExtension`.
 
-`arkiv-git keepalive arkiv://<rid> [--horizon 90d] [--renew-below 30d] [--max-spend <tGLM>] [--dry-run] [--evm-key <file>]`:
+`chart keepalive arkiv://<rid> [--horizon 90d] [--renew-below 30d] [--max-spend <tGLM>] [--dry-run] [--evm-key <file>]`:
 
 1. Run the fetch sync for the control plane (identity, binds, anchors, refs, manifests, chunk metadata, no chunk bodies) for delegates and tracked peers, so the keep set is computed from verified state and never extends spam.
 2. Keep set:
@@ -627,13 +627,13 @@ When data expires anyway:
 - Clone and fetch fail closed with a specific code and a message that names the entity, for example:
 
 ```text
-fatal: arkiv-git E_NOT_LIVE: pack 3f1c...a9 chunk 17 of 1600 is not live on Arkiv (expired or deleted).
+fatal: chart E_NOT_LIVE: pack 3f1c...a9 chunk 17 of 1600 is not live on Arkiv (expired or deleted).
 This repo's keepalive lapsed; the data cannot be recovered through queries.
 Peers that cloned earlier still hold it locally and can re-push it.
 ```
 
 - A lapsed control-plane entity gives `E_CONTROL_NOT_LIVE` (section 3.3), never a silently older head.
-- `arkiv-git status arkiv://<rid>` prints per-peer head, minimum expiry in days, entities expiring within 14 days, and equivocation notes; `git fetch` warns when the minimum expiry is under 7 days.
+- `chart status arkiv://<rid>` prints per-peer head, minimum expiry in days, entities expiring within 14 days, and equivocation notes; `git fetch` warns when the minimum expiry is under 7 days.
 - Recovery from block history (create calldata of expired entities) is not attempted in P1.
 
 ## 6. Search
@@ -654,7 +654,7 @@ Queries (operators all within the MEASURED set: `=`, ranges, `STARTSWITH`, `AND`
 
 ```sql
 -- exact name
-ag.kind = str('id') AND ag.name = str('arkiv-git')
+ag.kind = str('id') AND ag.name = str('charter')
 
 -- name prefix
 ag.kind = str('id') AND ag.name STARTSWITH str('arkiv')
@@ -674,7 +674,7 @@ Resolution:
 - Results are hints from permissionless data; every hit is reduced to its rid, deduplicated, and its identity chain verified before display.
 - A hit on an old revision whose head no longer matches the predicate (renamed repo, changed licence) is dropped after verification.
 - Display: name, description, delegates (short nids), last anchor block, minimum expiry, so dead or spam repos are visible as such.
-- `arkiv-git search [--name N | --prefix P] [--lang L] [--license S] [--peer NID] [--recent DAYS] [--limit N]`, at most 100 rows per underlying query, paged by keyset on `ag.at` for `--recent`.
+- `chart search [--name N | --prefix P] [--lang L] [--license S] [--peer NID] [--recent DAYS] [--limit N]`, at most 100 rows per underlying query, paged by keyset on `ag.at` for `--recent`.
 - Private repos (P2) carry none of these attributes.
 
 ## 7. Rust workspace
@@ -685,11 +685,11 @@ Workspace at the repo root, edition 2024, `rust-version = "1.97"` (matches the n
 
 | Crate | Kind | Responsibility | Depends on |
 | --- | --- | --- | --- |
-| `arkiv-git-crypto` | lib | `PublicKey`, `Sig`, `Signer`, `Verifier`, algorithm registry with `PK_LEN` / `SIG_LEN`, the ML-DSA backend behind a feature, `H(tag, x)`, seed handling, HKDF derivation of ML-DSA and EVM keys | `sha2`, `hkdf`, `zeroize`, the ML-DSA crate chosen in `pq-signatures.md`, `alloy-signer-local` |
-| `arkiv-git-core` | lib, no I/O | CBOR body types for every kind, envelope encode / decode / canonical check, size caps, attribute schema per kind (`fn attributes(&Entity) -> Vec<Attribute>`), bind chain, identity evaluation, anchor chain and acceptance, completeness predicate, canonical refs, high-water-mark types, error codes | `arkiv-git-crypto`, `minicbor`, `gix-validate`, `thiserror` |
-| `arkiv-git-store` | lib | `trait Arkiv` (below), `RpcArkiv` over alloy plus `arkiv-bindings` plus `arkiv-rpc-types`, `MemArkiv` fake (feature `fake`), typed query builder, tx pipeline (nonces, window, pacing, receipts, revert decoding), batching under byte and gas caps | `arkiv-bindings`, `arkiv-rpc-types`, `arkiv-query` (fake only), alloy, `tokio` |
-| `arkiv-git-sync` | lib | git CLI wrapper, cache layout, `state.json`, `pending.json`, push, fetch, keepalive, search orchestration | core, store, crypto |
-| `arkiv-git-cli` | two bins | `git-remote-arkiv` (helper protocol) and `arkiv-git` (`keys init/show`, `init`, `id show/propose/accept`, `keepalive`, `search`, `status`, `fund`) | sync |
+| `charter-crypto` | lib | `PublicKey`, `Sig`, `Signer`, `Verifier`, algorithm registry with `PK_LEN` / `SIG_LEN`, the ML-DSA backend behind a feature, `H(tag, x)`, seed handling, HKDF derivation of ML-DSA and EVM keys | `sha2`, `hkdf`, `zeroize`, the ML-DSA crate chosen in `pq-signatures.md`, `alloy-signer-local` |
+| `charter-core` | lib, no I/O | CBOR body types for every kind, envelope encode / decode / canonical check, size caps, attribute schema per kind (`fn attributes(&Entity) -> Vec<Attribute>`), bind chain, identity evaluation, anchor chain and acceptance, completeness predicate, canonical refs, high-water-mark types, error codes | `charter-crypto`, `minicbor`, `gix-validate`, `thiserror` |
+| `charter-store` | lib | `trait Arkiv` (below), `RpcArkiv` over alloy plus `arkiv-bindings` plus `arkiv-rpc-types`, `MemArkiv` fake (feature `fake`), typed query builder, tx pipeline (nonces, window, pacing, receipts, revert decoding), batching under byte and gas caps | `arkiv-bindings`, `arkiv-rpc-types`, `arkiv-query` (fake only), alloy, `tokio` |
+| `charter-sync` | lib | git CLI wrapper, cache layout, `state.json`, `pending.json`, push, fetch, keepalive, search orchestration | core, store, crypto |
+| `charter-cli` | two bins | `git-remote-arkiv` (helper protocol) and `chart` (`keys init/show`, `init`, `id show/propose/accept`, `keepalive`, `search`, `status`, `fund`) | sync |
 
 Dependency direction: `crypto <- core`, `store` independent of `core`, `core + store + crypto <- sync <- cli`.
 `core` is pure and is where the security rules live, so the property tests in section 8 run against it with no async and no fake.
@@ -758,7 +758,7 @@ One `thiserror` enum per crate (`CryptoError`, `FormatError`, `VerifyError`, `St
 | `E_WRONG_CHAIN` | RPC chain id differs from the repo's | no |
 | `E_INTERNAL` | a revert that indicates our bug | no |
 
-Mapping to git: fetch-side errors print `fatal: arkiv-git <CODE>: <message>` on stderr and exit 128; push-side errors are reported per ref as `error <dst> <CODE> <message>`; the `arkiv-git` CLI exits 1 for verification errors, 2 for usage, 3 for transport, 4 for funds.
+Mapping to git: fetch-side errors print `fatal: chart <CODE>: <message>` on stderr and exit 128; push-side errors are reported per ref as `error <dst> <CODE> <message>`; the `chart` CLI exits 1 for verification errors, 2 for usage, 3 for transport, 4 for funds.
 
 ## 8. Test plan for the P1 gate
 
@@ -773,7 +773,7 @@ Mapping to git: fetch-side errors print `fatal: arkiv-git <CODE>: <message>` on 
 - Query rendering: every query the code emits parses with `arkiv-query` and contains no `NOT` or `!=`.
 - Canonical refs: quorum, tie, threshold above votes, tags.
 
-### 8.2 Property tests (CI, `proptest`, against `arkiv-git-core` only)
+### 8.2 Property tests (CI, `proptest`, against `charter-core` only)
 
 Generator: an honest history for one peer (binds, anchors with random refs, occasional EVM rotation) laid out in creation order, then a random adversarial schedule mixing:
 
@@ -819,8 +819,8 @@ Identity properties, same style: quorum math, first-quorum-wins among siblings, 
 Scenario:
 
 1. Generate a deterministic 100 MiB repo (`scripts/gen-repo.sh <seed>`: 200 commits of incompressible blobs, so the pack is about 100 MiB).
-2. `arkiv-git init`, then `git push --lifetime 1d` (test override) to Rabdi; record wall time, txs, gas, tGLM.
-3. In a fresh `$ARKIV_GIT_HOME` and empty directory: `git clone arkiv://<rid>`; compare `git for-each-ref` and `git rev-list --all --objects | sha256sum` with the source; `git fsck --full`.
+2. `chart init`, then `git push --lifetime 1d` (test override) to Rabdi; record wall time, txs, gas, tGLM.
+3. In a fresh `$CHARTER_HOME` and empty directory: `git clone arkiv://<rid>`; compare `git for-each-ref` and `git rev-list --all --objects | sha256sum` with the source; `git fsck --full`.
 4. Replay: on a small second repo, pushes A, B, C; re-post A's anchor and refs bytes from a foreign funded address and from the peer's own control address; fresh clone must give C; a clone holding the mark at C against a local proxy that hides C must give `E_STALE_HEAD`.
 5. Expiry: push D with a 100-block anchor lifetime override, extend A to C from a third address, wait 100 blocks (about 3.5 minutes), fresh clone must give `E_CONTROL_NOT_LIVE`.
 6. Search: the gate repo appears in name, prefix, language and recency queries.

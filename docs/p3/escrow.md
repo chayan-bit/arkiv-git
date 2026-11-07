@@ -2,7 +2,7 @@
 
 Status: implemented (store, escrow crate, CLI), hackathon scope.
 Date: 2026-11-07.
-Builds on `docs/p3/cob-ops.md`; code in `crates/arkiv-git-escrow`.
+Builds on `docs/p3/cob-ops.md`; code in `crates/charter-escrow`.
 
 ## Why
 
@@ -15,7 +15,7 @@ This version uses one escrow agent key now and moves to k-of-n threshold ECDSA l
 The agent is trusted to act, not to be honest.
 It can steal (send funds anywhere) or stall (never pay), because it holds the only key.
 It cannot do either undetectably: every deposit, payout and refund is a signed op tied to a chain tx, and anyone can recompute the books.
-`arkiv-git escrow audit` needs no keys, reads only public ops, the program's obligations and chain txs, and exits 1 on any violation.
+`chart escrow audit` needs no keys, reads only public ops, the program's obligations and chain txs, and exits 1 on any violation.
 A misbehaving agent is therefore caught with public proof, and the delegates replace it with a new `appoint` op.
 Arkiv is trusted for ordering and availability only, as for every other op.
 
@@ -28,7 +28,7 @@ What the audit checks:
 5. Balance shortfall: the escrow balance is below credited deposits minus verified settlements.
 
 The nonce check depends on one rule: the payout key sends payouts and refunds only.
-The agent's ops are signed by its separate arkiv-git identity and paid for by that identity's own wallet, never by the payout key.
+The agent's ops are signed by its separate Charter identity and paid for by that identity's own wallet, never by the payout key.
 A gas float (tGLM sent to the escrow address and not claimed as a deposit) pays payout gas; if gas eats into deposits, the audit reports a shortfall.
 
 Known limits of this version:
@@ -40,9 +40,9 @@ Known limits of this version:
 
 ## Keys
 
-- `arkiv-git escrow init` creates `$ARKIV_GIT_HOME/escrow/keys/seed` (the escrow identity) and `$ARKIV_GIT_HOME/escrow/keys/payout` (the payout EVM key), both mode 0600.
+- `chart escrow init` creates `$CHARTER_HOME/escrow/keys/seed` (the escrow identity) and `$CHARTER_HOME/escrow/keys/payout` (the payout EVM key), both mode 0600.
 - It prints the identity id, the escrow address and the identity's wallet address, never key material, and refuses to overwrite.
-- `arkiv-git escrow show` prints the same three lines.
+- `chart escrow show` prints the same three lines.
 
 ## Op formats
 
@@ -74,16 +74,16 @@ Programs return `obligations`, each a map `#{ kind: "pay", to, amount, reason, k
 `key` is unique per program, and the escrow settles each key at most once.
 The crate reads obligations through `trait ObligationSource { fn obligations(&self, rid: &Rid) -> Result<Vec<Obligation>> }`.
 `FixedObligations` is the fixed-list implementation used by the tests and by the CLI's `--obligations <file.json>` override.
-By default the CLI reads the repo's pinned program through `ProgramObligations` (`crates/arkiv-git-cli/src/escrow.rs`), which fetches the repo into the local cache, folds the program with `arkiv_git_sync::program::obligations_in`, keeps the `pay` obligations and turns JSON integer amounts into decimal strings.
+By default the CLI reads the repo's pinned program through `ProgramObligations` (`crates/charter-cli/src/escrow.rs`), which fetches the repo into the local cache, folds the program with `charter_sync::program::obligations_in`, keeps the `pay` obligations and turns JSON integer amounts into decimal strings.
 `since_block` comes from the program: an obligation that carries `due_order` (the `order` of the event that made it due, for example the accepted push in `bounty.rhai`) gets the block of that event.
 Funds are allocated to unsettled pay obligations in program order, per purpose.
 
 ### Private repos
 
 A private repo's program folds sealed ops, so only members can compute its obligations.
-Every `arkiv-git escrow` command that names a repo (`appoint`, `deposit`, `run`, `audit`) detects a private repo the way the remote helper does and then runs over the repo's `Sealed` view.
+Every `chart escrow` command that names a repo (`appoint`, `deposit`, `run`, `audit`) detects a private repo the way the remote helper does and then runs over the repo's `Sealed` view.
 The escrow's own ops are then sealed too, and the ledger and the obligations are read through the same view.
-An escrow agent for a private repo must therefore run on a machine whose identity (`arkiv-git keys show`) is a member with at least the read role; a non-member gets `E_NOT_MEMBER`.
+An escrow agent for a private repo must therefore run on a machine whose identity (`chart keys show`) is a member with at least the read role; a non-member gets `E_NOT_MEMBER`.
 An auditor of a private repo's escrow must be a member for the same reason, so the audit is public only among members.
 Chain transfers (deposits, payouts, refunds) are plain transactions and stay visible to everyone.
 The agent reads its keyring once at start, so after a member removal rotates the key a long-running `escrow run` must be restarted to see newer ops.
@@ -97,14 +97,14 @@ The agent reads its keyring once at start, so after a member removal rotates the
 
 ## Agent
 
-`arkiv-git escrow run --repo <rid> [--obligations <file>] [--once] [--interval <s>]` runs rounds; one round:
+`chart escrow run --repo <rid> [--obligations <file>] [--once] [--interval <s>]` runs rounds; one round:
 
 1. refuses to act unless the repo's appointment names this escrow's identity and address;
 2. finishes any journaled transfer (below);
 3. folds the ledger and the obligations, and pays each funded, unsettled pay obligation;
 4. refunds each expired deposit whose purpose no pay obligation uses.
 
-Crash safety: before a transfer is sent, `$ARKIV_GIT_HOME/escrow/journal/<rid>.json` records the settlement it is for and the exact tx parameters, nonce included.
+Crash safety: before a transfer is sent, `$CHARTER_HOME/escrow/journal/<rid>.json` records the settlement it is for and the exact tx parameters, nonce included.
 After a crash, the next round checks for a settlement op with that key first, then for the journaled tx's receipt, posts the op if the tx landed, and otherwise re-signs and rebroadcasts the identical tx.
 Because the retry reuses the journaled nonce, it can never become a second transfer, and keys that already have a settlement op are never planned again.
 A lock file keeps one agent per repo.
@@ -112,9 +112,9 @@ Payout transfers are signed directly rather than through `TxPipeline::transfer`,
 
 ## Other commands
 
-- `arkiv-git escrow appoint --repo <rid> --escrow <id> --address <0x>`: run by a delegate; prints the escrow object id.
-- `arkiv-git escrow deposit --repo <rid> --amount <wei> --purpose <p> [--expiry <block>] [--tx <0x>]`: sends the amount from the wallet through `TxPipeline::transfer` (or claims an already sent `--tx`) and posts the deposit op.
-- `arkiv-git escrow audit --repo <rid> [--obligations <file>] [--grace <blocks>]`: prints the ledger summary and one `FLAG` line per violation; exits 1 if there is any.
+- `chart escrow appoint --repo <rid> --escrow <id> --address <0x>`: run by a delegate; prints the escrow object id.
+- `chart escrow deposit --repo <rid> --amount <wei> --purpose <p> [--expiry <block>] [--tx <0x>]`: sends the amount from the wallet through `TxPipeline::transfer` (or claims an already sent `--tx`) and posts the deposit op.
+- `chart escrow audit --repo <rid> [--obligations <file>] [--grace <blocks>]`: prints the ledger summary and one `FLAG` line per violation; exits 1 if there is any.
 
 ## Store support
 

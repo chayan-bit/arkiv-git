@@ -29,7 +29,7 @@ Pinned chain (quicknet):
 
 - Chain hash `52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971`.
 - Scheme `bls-unchained-g1-rfc9380`, period 3 seconds, genesis 1692803367, signatures on G1 (48 bytes), public key on G2.
-- Public key and genesis are constants in `crates/arkiv-git-timelock/src/chain.rs`.
+- Public key and genesis are constants in `crates/charter-timelock/src/chain.rs`.
 
 ## Trust assumption
 
@@ -41,7 +41,7 @@ Nothing else is trusted, because relays only carry beacons.
 Every beacon is verified against the pinned public key before use, so a lying relay cannot cause a wrong or forged open.
 Timelock gives a lower bound on secrecy, not an upper bound, so never rely on it to keep something secret forever.
 
-## API (`arkiv-git-timelock`)
+## API (`charter-timelock`)
 
 - `seal(plaintext, unlock_at_unix) -> SealedBlob { round, chain_hash, ciphertext }` picks the first round published at or after `unlock_at`, so it never opens early.
 - `open(blob, beacon_signature) -> plaintext` verifies the signature against the pinned key and the blob's round, then decrypts.
@@ -53,8 +53,8 @@ Timelock gives a lower bound on secrecy, not an upper bound, so never rely on it
 ## CLI
 
 ```
-arkiv-git timelock seal --until <RFC3339|+duration> --in <file> --out <file>
-arkiv-git timelock open --in <file> --out <file>
+chart timelock seal --until <RFC3339|+duration> --in <file> --out <file>
+chart timelock open --in <file> --out <file>
 ```
 
 `--until` takes an instant such as `2027-01-01T00:00:00Z` or a relative `+90s`, `+30m`, `+12h`, `+7d`.

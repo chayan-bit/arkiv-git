@@ -1,8 +1,8 @@
-# arkiv-git
+# Charter
 
 ## ETHGlobal Mumbai 2026
 
-arkiv-git is decentralized git hosting on Arkiv: a stock `git push arkiv::<rid>` and `git clone arkiv::<rid>` work end to end on the Rabdi testnet with no server of ours in between.
+Charter is decentralized git hosting on Arkiv: a stock `git push arkiv::<rid>` and `git clone arkiv::<rid>` work end to end on the Rabdi testnet with no server of ours in between.
 It is a redesign of the Radicle (heartwood) protocol in which Arkiv replaces gossip and seed nodes, and every client verifies every signature and fails closed on rollback, expiry or missing data.
 A live 10 MiB push and clone have passed on Rabdi through the real binaries (numbers below), and the 100 MB gate passes against an in-memory Arkiv.
 
@@ -12,7 +12,7 @@ Submitted to:
 - Ethereum Foundation: "Best CROPS App" (see the `CROPS` section below).
 - ETHGlobal finalist judging.
 
-Demo videos, every scene recorded live on the Rabdi testnet: the [all-live walkthrough](https://github.com/chayan-bit/arkiv-git/raw/demo-assets/arkiv-git-demo-live.mp4) (2:30, chain waits sped up 3x and captioned so) and the [AI agent bounty](https://raw.githubusercontent.com/chayan-bit/arkiv-git/demo-assets/agent-bounty-codex-live.mp4) (39 s).
+Demo videos, every scene recorded live on the Rabdi testnet: the [all-live walkthrough](https://github.com/chayan-bit/charter/raw/demo-assets/arkiv-git-demo-live.mp4) (2:30, chain waits sped up 3x and captioned so) and the [AI agent bounty](https://raw.githubusercontent.com/chayan-bit/charter/demo-assets/agent-bounty-codex-live.mp4) (39 s).
 
 Notes for judges, in `arkiv/`:
 
@@ -24,22 +24,22 @@ Notes for judges, in `arkiv/`:
 
 ## Try it in 60 seconds
 
-arkiv-git's own source is hosted on Arkiv by arkiv-git, and its development runs there: every change to `main` is an Arkiv patch that the repo's pinned program accepts only with a delegate approval and a passing CI attestation posted on Arkiv by the CI runner.
+Charter's own source is hosted on Arkiv by Charter, and its development runs there: every change to `main` is an Arkiv patch that the repo's pinned program accepts only with a delegate approval and a passing CI attestation posted on Arkiv by the CI runner.
 GitHub is a read-only mirror plus the host of the release binaries.
 
 ```sh
 # 1. install the prebuilt binaries (macOS arm64 or Linux x86_64), see docs/install.md
-TAG=v0.1.0 TARGET=aarch64-apple-darwin   # or x86_64-unknown-linux-gnu
-mkdir -p ~/.local/bin && curl -fsSL "https://github.com/chayan-bit/arkiv-git/releases/download/$TAG/arkiv-git-$TAG-$TARGET.tar.gz" | tar xz -C ~/.local/bin git-remote-arkiv arkiv-git arkiv-git-mcp
+TAG=v0.2.0 TARGET=aarch64-apple-darwin   # or x86_64-unknown-linux-gnu
+mkdir -p ~/.local/bin && curl -fsSL "https://github.com/chayan-bit/charter/releases/download/$TAG/charter-$TAG-$TARGET.tar.gz" | tar xz -C ~/.local/bin git-remote-arkiv chart chart-mcp
 export PATH="$HOME/.local/bin:$PATH"
 
 # 2. clone this project from Arkiv, with no keys and no server of ours
-git clone arkiv::zBZ3MRTENmgPBebpq97ZPTbxeFZNaS8VX6Es25hpdJsSJ arkiv-git
+git clone arkiv::zBZ3MRTENmgPBebpq97ZPTbxeFZNaS8VX6Es25hpdJsSJ charter
 
 # 3. see the program that governs it, its patches and their CI attestations, read straight from Arkiv
-cd arkiv-git
-arkiv-git program status --repo arkiv::zBZ3MRTENmgPBebpq97ZPTbxeFZNaS8VX6Es25hpdJsSJ
-arkiv-git op list --repo arkiv::zBZ3MRTENmgPBebpq97ZPTbxeFZNaS8VX6Es25hpdJsSJ
+cd charter
+chart program status --repo arkiv::zBZ3MRTENmgPBebpq97ZPTbxeFZNaS8VX6Es25hpdJsSJ
+chart op list --repo arkiv::zBZ3MRTENmgPBebpq97ZPTbxeFZNaS8VX6Es25hpdJsSJ
 ```
 
 Reads without an access key are rate limited by Arkiv, so a keyless clone may pause once for about 20 seconds.
@@ -48,11 +48,11 @@ Everything below ran live on the Rabdi testnet, with tx hashes and explorer link
 
 | What | Evidence |
 | --- | --- |
-| A real AI agent (headless Codex through `arkiv-git-mcp`) claims a ZK-proof-gated bounty and the escrow pays it on-chain | [`docs/live/agent-bounty.md`](docs/live/agent-bounty.md), [video, 39 s](https://raw.githubusercontent.com/chayan-bit/arkiv-git/demo-assets/agent-bounty-codex-live.mp4) |
-| Push, clone, a program refusing a push, patch review, private repo, keyless clone, every scene live | [`docs/live/demo-video.md`](docs/live/demo-video.md), [video, 2:30](https://github.com/chayan-bit/arkiv-git/raw/demo-assets/arkiv-git-demo-live.mp4) |
+| A real AI agent (headless Codex through `chart-mcp`) claims a ZK-proof-gated bounty and the escrow pays it on-chain | [`docs/live/agent-bounty.md`](docs/live/agent-bounty.md), [video, 39 s](https://raw.githubusercontent.com/chayan-bit/charter/demo-assets/agent-bounty-codex-live.mp4) |
+| Push, clone, a program refusing a push, patch review, private repo, keyless clone, every scene live | [`docs/live/demo-video.md`](docs/live/demo-video.md), [video, 2:30](https://github.com/chayan-bit/charter/raw/demo-assets/arkiv-git-demo-live.mp4) |
 | Multi-peer patches, a 2-of-2 delegate quorum, revert and rewind, branch protection, escrow payout | [`docs/live/collab-escrow.md`](docs/live/collab-escrow.md) |
 | Private MLS repos with roles and member removal, programs on private repos, ZK sealed-patch proofs, timelock | [`docs/live/private-proofs.md`](docs/live/private-proofs.md) |
-| Developing arkiv-git on Arkiv with a CI-gated `main` | [`docs/p3/arkiv-ci.md`](docs/p3/arkiv-ci.md), [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| Developing Charter on Arkiv with a CI-gated `main` | [`docs/p3/arkiv-ci.md`](docs/p3/arkiv-ci.md), [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 
 ## What it is
 
@@ -98,7 +98,7 @@ All numbers MEASURED on Rabdi through the real `git push arkiv::` and `git clone
 
 Every feature below is on `main`, tested on the in-memory Arkiv in CI, and run live on Rabdi as recorded in `docs/live/`.
 
-- Signed collaborative-object ops (issues, patches, reviews, attestations): `arkiv-git op post`, `op list`, `op attach-proof`; format in [`docs/p3/cob-ops.md`](docs/p3/cob-ops.md).
+- Signed collaborative-object ops (issues, patches, reviews, attestations): `chart op post`, `op list`, `op attach-proof`; format in [`docs/p3/cob-ops.md`](docs/p3/cob-ops.md).
 - Repo programs: deterministic Rhai pinned by hash in the identity document, enforced on every fetch and push; templates in `programs/`, contract in [`docs/p3/programs.md`](docs/p3/programs.md).
 - Escrow: an accountable agent pays program obligations on-chain, with a public audit; [`docs/p3/escrow.md`](docs/p3/escrow.md).
 - Private repos: MLS groups with X-Wing, sealed entities with blinded attributes, roles and member removal; [`docs/p2/private-repos.md`](docs/p2/private-repos.md).
@@ -120,25 +120,25 @@ export PATH="$PWD/target/release:$PATH"   # git finds git-remote-arkiv through P
 ### Locally, with no chain
 
 The `mem:` backend is an Arkiv fake that persists to a file.
-The end-to-end test drives the real `arkiv-git` and `git-remote-arkiv` binaries against it, with two users, `git push`, `git clone` and `git fsck --full --strict`:
+The end-to-end test drives the real `chart` and `git-remote-arkiv` binaries against it, with two users, `git push`, `git clone` and `git fsck --full --strict`:
 
 ```sh
-cargo test -p arkiv-git-cli --test e2e
+cargo test -p charter-cli --test e2e
 ```
 
 To do the same by hand, point the CLI at a log file:
 
 ```sh
-export ARKIV_GIT_BACKEND=mem:/tmp/arkiv.log
-export ARKIV_GIT_HOME=/tmp/arkiv-git-demo   # optional, keeps the seed out of ~/.arkiv-git
-arkiv-git keys init                         # prints your nid and wallet address
-arkiv-git fund --dev 1000                   # dev faucet: credits 1000 tGLM on the fake chain
-arkiv-git init --name demo                  # prints rid and url
+export CHARTER_BACKEND=mem:/tmp/arkiv.log
+export CHARTER_HOME=/tmp/charter-demo   # optional, keeps the seed out of ~/.charter
+chart keys init                         # prints your nid and wallet address
+chart fund --dev 1000                   # dev faucet: credits 1000 tGLM on the fake chain
+chart init --name demo                  # prints rid and url
 git push arkiv::<rid> main                  # from any git repo with a commit on main
 git clone arkiv::<rid> demo-clone
 ```
 
-`arkiv-git fund --dev <amount>` works only with a `mem:` backend; on any other backend it refuses, because real chains are funded from a faucet.
+`chart fund --dev <amount>` works only with a `mem:` backend; on any other backend it refuses, because real chains are funded from a faucet.
 `demo/programs.sh` runs the repo-program walkthrough (branch protection, local refusal, approved push, clone) the same way.
 
 ### On the Rabdi testnet
@@ -149,15 +149,15 @@ Never use real funds or mainnet keys.
 1. Get an Arkiv access key at hub.arkiv.network (wallet sign-in and a captcha, so a person has to do it).
    Anonymous reads run out after about 1,000 queries.
    `export ARKIV_ACCESS_KEY=<your key>` and never commit it.
-2. `arkiv-git keys init` creates a seed under `$ARKIV_GIT_HOME` (default `~/.arkiv-git`) and prints your nid and the wallet address.
-3. `arkiv-git fund --bytes 10485760` prints the wallet, its balance and an estimate of what an init plus a push of that size needs.
+2. `chart keys init` creates a seed under `$CHARTER_HOME` (default `~/.charter`) and prints your nid and the wallet address.
+3. `chart fund --bytes 10485760` prints the wallet, its balance and an estimate of what an init plus a push of that size needs.
    It makes no transfer: send tGLM to the wallet from the faucet at hub.arkiv.network/faucet.
-4. `arkiv-git init --name demo --lang rust --license MIT` creates the repo with you as its single delegate and prints `rid:` and `url: arkiv::<rid>`.
+4. `chart init --name demo --lang rust --license MIT` creates the repo with you as its single delegate and prints `rid:` and `url: arkiv::<rid>`.
 5. In any git repo: `git remote add arkiv arkiv::<rid>` and `git push arkiv main`.
 6. Anywhere else: `git clone arkiv::<rid> demo-clone`.
-7. `arkiv-git status arkiv::<rid>` shows each peer's head and the minimum expiry in days, and `arkiv-git keepalive arkiv::<rid> --dry-run` shows what it would extend.
+7. `chart status arkiv::<rid>` shows each peer's head and the minimum expiry in days, and `chart keepalive arkiv::<rid> --dry-run` shows what it would extend.
 
-`ARKIV_GIT_DATA_LIFETIME=1d` shortens the data lifetime for demos; the live gate used 1 day.
+`CHARTER_DATA_LIFETIME=1d` shortens the data lifetime for demos; the live gate used 1 day.
 The default is 30 days for data and 182.5 days for the control plane.
 
 ## Wallets and a query you can run
@@ -167,13 +167,13 @@ The live demo repo on Rabdi, created on 2026-11-07 with 1-day lifetimes (43200 b
 - rid: `z5b15ZhFLNackCqiyAL5y4dMj4MFGfVrtgLmZ9PPDU1AH`, so `git clone arkiv::z5b15ZhFLNackCqiyAL5y4dMj4MFGfVrtgLmZ9PPDU1AH` works with no keys.
 - rid in hex (revision 0 hash): `4424958cfcfb43cac8e202206fb5640c30855c2b800151023839fcc3a5bde652`.
 - Flow: init, push `v0`, `program pin` of `programs/branch-protection.rhai`, a direct push of `v1` refused locally with `E_PROGRAM_REJECTED`, a patch op and an approve op at `c9cf57a`, then the same push accepted.
-- A fresh clone in a second home gets `c9cf57a feat: v1`, and `arkiv-git program status` shows the approved patch and `head: refs/heads/main c9cf57a9508c7f6b00e495a03490bc1c2109b0fd`.
+- A fresh clone in a second home gets `c9cf57a feat: v1`, and `chart program status` shows the approved patch and `head: refs/heads/main c9cf57a9508c7f6b00e495a03490bc1c2109b0fd`.
 - Wallet (pays and tops up the repo addresses): `0xC086980750bc26B4e8F64B85aFe0c7c8bFDc2a7E`.
 - Control address (owner and creator of the `id`, `bind`, `anchor` and `cob` entities): `0xc051EAe280800fdF4bAd0A2665aCdB1B4963688F`.
 - Bulk address (owner and creator of the `chunk`, `manifest` and `refs` entities): `0x773d7756Fc906D21c4Ac55d7979c3db73C24D6e3`.
 - Explorer: https://rabdi.explorer.arkiv.network, for example https://rabdi.explorer.arkiv.network/address/0xc051EAe280800fdF4bAd0A2665aCdB1B4963688F.
 
-Anyone can read a repo's anchor chain straight from Arkiv, without arkiv-git.
+Anyone can read a repo's anchor chain straight from Arkiv, without Charter.
 The anchor kind fixes each peer's refs head; this query lists the anchors of one repo in sequence order (shape from `docs/p1/design.md` section 3.6):
 
 ```text
@@ -187,7 +187,7 @@ EOF
 ```
 
 Expected result: two rows, the anchors with `ag.seq` `0x0` (the `v0` push) and `0x1` (the approved `v1` push), both owned by the control address `0xc051eae280800fdf4bad0a2665acdb1b4963688f`.
-For another repo, the rid in hex is the revision hash that `arkiv-git id show arkiv::<rid>` prints for revision 0; with an all-zero rid the query is valid and returns no rows.
+For another repo, the rid in hex is the revision hash that `chart id show arkiv::<rid>` prints for revision 0; with an all-zero rid the query is valid and returns no rows.
 Add `"select":{"count":true}` to the options to get only a count.
 Each row is a hint, not proof: a client checks the signature, the creator address and the chain before trusting it, which `git clone` does for you.
 
@@ -196,12 +196,12 @@ Each row is a hint, not proof: a client checks the signature, the creator addres
 ```sh
 nix develop                                   # Rust 1.97 toolchain, git, cargo-audit
 cargo test --workspace --all-features         # unit, property, fake-Arkiv and git E2E tests
-cargo test --release -p arkiv-git-sync --all-features --test gate -- --ignored --nocapture   # 100 MB gate on the fake
-ARKIV_GIT_RABDI=1 cargo test -p arkiv-git-cli --test rabdi_smoke -- --ignored              # live smoke, needs the funded throwaway key
-ARKIV_GIT_RABDI=1 cargo test -p arkiv-git-cli --test rabdi_gate live_rabdi_gate -- --ignored --nocapture   # live 10 MiB gate, about 0.44 tGLM
+cargo test --release -p charter-sync --all-features --test gate -- --ignored --nocapture   # 100 MB gate on the fake
+CHARTER_RABDI=1 cargo test -p charter-cli --test rabdi_smoke -- --ignored              # live smoke, needs the funded throwaway key
+CHARTER_RABDI=1 cargo test -p charter-cli --test rabdi_gate live_rabdi_gate -- --ignored --nocapture   # live 10 MiB gate, about 0.44 tGLM
 ```
 
-Try it locally without a chain: `export ARKIV_GIT_BACKEND=mem:/tmp/arkiv.log`, then `arkiv-git keys init`, `arkiv-git init --name demo`, and `git push` to the printed `arkiv::` URL.
+Try it locally without a chain: `export CHARTER_BACKEND=mem:/tmp/arkiv.log`, then `chart keys init`, `chart init --name demo`, and `git push` to the printed `arkiv::` URL.
 
 ## How AI was used
 

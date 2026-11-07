@@ -1,4 +1,4 @@
-# arkiv-git pitch video script
+# Charter pitch video script
 
 ETHGlobal Mumbai 2026.
 Total narration: 414 words, about 166 s at 150 words per minute, in a 3:00 cut (the rest is pauses for terminal output).
@@ -9,8 +9,8 @@ Scenes 2 to 5 use only the all-live clip; FAKE now applies only to parts of scen
 
 ## Clip to use
 
-`https://github.com/chayan-bit/arkiv-git/raw/demo-assets/arkiv-git-demo-live.gif` (MP4 at the same path, `.mp4`, 2:30, played at 3x as its caption says).
-Source tape: `demo/arkiv-git.tape`; ids, addresses and checks in `docs/live/demo-video.md`.
+`https://github.com/chayan-bit/charter/raw/demo-assets/arkiv-git-demo-live.gif` (MP4 at the same path, `.mp4`, 2:30, played at 3x as its caption says).
+Source tape: `demo/charter.tape`; ids, addresses and checks in `docs/live/demo-video.md`.
 Every scene runs live on the Rabdi testnet: 1 init, push and a fresh clone by another user, 2 pinned program refuses a direct push, 3 bob's patch, alice's approval, accepted push and a keyless clone of the head, 4 private repo where the member clones and an outsider gets `E_NOT_MEMBER`, 5 keyless clone of the long-lived README repo.
 The older clip `arkiv-git-demo.gif` (mostly in-memory) stays on the branch but is superseded; only its offline `zk verify` scene is still referenced below.
 
@@ -34,7 +34,7 @@ Each scene lists what is on screen first, then the narration, one sentence per b
 
 ### Scene 1 - problem (0:00-0:16, 38 words)
 
-On screen: black card, large text, then the arkiv-git name.
+On screen: black card, large text, then the Charter name.
 
 - GitHub is a single point of censorship and trust, because one company decides who hosts, who reads and what stays up.
 - Radicle fixes the trust part with signed refs, but it needs always-on peers to carry your code.
@@ -42,10 +42,10 @@ On screen: black card, large text, then the arkiv-git name.
 ### Scene 2 - the answer (0:16-0:33, 42 words)
 
 On screen: terminal, live clip scene 1.
-Commands shown: `as alice arkiv-git init --name arkiv-git-live-video`, `as alice git -C work push $URL main`, `as bob git clone -q $URL bob-clone && git -C bob-clone log --oneline`, then the raw `arkiv_query` curl and the explorer link for the creator address.
+Commands shown: `as alice chart init --name charter-live-video`, `as alice git -C work push $URL main`, `as bob git clone -q $URL bob-clone && git -C bob-clone log --oneline`, then the raw `arkiv_query` curl and the explorer link for the creator address.
 Caption: "Rabdi testnet, 3x".
 
-- arkiv-git ports Radicle to Arkiv, a data chain with no smart contracts, so the host is a public data layer.
+- Charter ports Radicle to Arkiv, a data chain with no smart contracts, so the host is a public data layer.
 - It is stock git, `git push arkiv::` and `git clone arkiv::`, signed with post-quantum ML-DSA-65 plus Ed25519, and both halves must verify.
 
 ### Scene 3 - live clone (0:33-1:03, 67 words)
@@ -64,7 +64,7 @@ The live clone needs an access key in the environment; export it off screen befo
 ### Scene 4 - program rejects a push (1:03-1:30, 61 words)
 
 On screen: live clip scenes 2 and 3.
-Commands shown: `arkiv-git program pin --repo $URL --file branch-protection.rhai`, a direct `git push` that prints `E_PROGRAM_REJECTED`, bob's push to his namespace and his patch op, alice's review and approve, the same v1 pushed and accepted, carol's keyless clone and `arkiv-git program status`.
+Commands shown: `chart program pin --repo $URL --file branch-protection.rhai`, a direct `git push` that prints `E_PROGRAM_REJECTED`, bob's push to his namespace and his patch op, alice's review and approve, the same v1 pushed and accepted, carol's keyless clone and `chart program status`.
 Caption: "Rabdi testnet, 3x".
 
 - A repo can pin a Rhai program by hash, so every client runs the same rules.
@@ -86,10 +86,10 @@ Captions: clip "Rabdi testnet, 3x", table "Rabdi testnet, 2026-11-07".
 
 On screen, if the demo lands:
 
-1. A delegate grants the agent key a scope, a bounty cap and an expiry: `arkiv-git op post --repo $URL --type xyz.arkiv.agent --action grant --payload-json '{"agent":"<nid hex>","scopes":["patch"],"max_bounty":<wei>,"until":<order>}'`.
+1. A delegate grants the agent key a scope, a bounty cap and an expiry: `chart op post --repo $URL --type xyz.arkiv.agent --action grant --payload-json '{"agent":"<nid hex>","scopes":["patch"],"max_bounty":<wei>,"until":<order>}'`.
 2. The AI agent drives the MCP server: lists issues, claims the bounty issue, posts a patch with a RISC Zero receipt attached. Fill in the exact MCP tool names from the `feat/mcp` branch when it merges; none exist on `main` yet.
-3. `arkiv-git program status` shows the patch with `proven: true`, a human delegate approves, main moves.
-4. `arkiv-git escrow run` pays the bounty, then `arkiv-git escrow audit --repo $URL` exits 0 with no FLAG lines.
+3. `chart program status` shows the patch with `proven: true`, a human delegate approves, main moves.
+4. `chart escrow run` pays the bounty, then `chart escrow audit --repo $URL` exits 0 with no FLAG lines.
 
 Captions: "in-memory chain" unless the agent demo was recorded on Rabdi, and say "live" only if it was.
 Status: the agent grant, proof policy and bounty obligation pass end to end on MemArkiv (FAKE); a real proof was verified on a live Rabdi public repo; the escrow payout and the MCP agent have no live Rabdi run recorded.
@@ -100,7 +100,7 @@ Status: the agent grant, proof policy and bounty obligation pass end to end on M
 - The program computes what is owed, and an escrow agent pays it on-chain.
 - That agent can steal or stall, but not undetectably, because the audit needs no keys and fails on any violation.
 
-Fallback if the agent demo does not land (same slot, 72 words, replaces the narration above; on screen the older clip's scene 3 where `arkiv-git zk verify` passes offline (no chain involved) and then fails after one public input is changed, with the op table from `docs/p3/agents.md` and the audit command from `docs/p3/escrow.md` shown over it):
+Fallback if the agent demo does not land (same slot, 72 words, replaces the narration above; on screen the older clip's scene 3 where `chart zk verify` passes offline (no chain involved) and then fails after one public input is changed, with the op table from `docs/p3/agents.md` and the audit command from `docs/p3/escrow.md` shown over it):
 
 - Now the part I care about: AI agents that earn money under rules anyone can check.
 - A delegate signs a scoped, capped, revocable grant for the agent key, and the pinned program enforces it.
@@ -119,26 +119,26 @@ On screen: three-line card: "Global order = rollback protection", "Anyone can ex
 On screen: repo URL large, the rid below it in small text.
 
 - MIT or Apache, testnet only, builds with `nix develop`.
-- arkiv-git, at github.com/chayan-bit/arkiv-git.
+- Charter, at github.com/chayan-bit/charter.
 
 ## Recording checklist
 
 - Resolution 1920x1080, terminal font size 22 or larger (the VHS tape renders at its own size; for a fresh screen capture use a 100x28 terminal), dark theme, no notifications, clock hidden.
-- The live clip is already rendered; to re-record it, build with `cargo build --release`, run `demo/live-setup.sh fund`, render with `nix-shell -p vhs --run 'vhs demo/arkiv-git.tape'`, then run `demo/live-setup.sh sweep` (about 0.01 tGLM per take, see `docs/live/demo-video.md`).
-- Scene 3 needs the live repo to still be alive: it was created 2026-11-07 with 1 day lifetimes and then extended by `arkiv-git keepalive` to at least 14 days, so it should be alive, but run `arkiv-git status arkiv::z5b15ZhFLNackCqiyAL5y4dMj4MFGfVrtgLmZ9PPDU1AH` first to confirm.
-- Do one dry clone of the live rid in a scratch `$ARKIV_GIT_HOME` right before recording to confirm it still resolves and prints `c9cf57a feat: v1`.
+- The live clip is already rendered; to re-record it, build with `cargo build --release`, run `demo/live-setup.sh fund`, render with `nix-shell -p vhs --run 'vhs demo/charter.tape'`, then run `demo/live-setup.sh sweep` (about 0.01 tGLM per take, see `docs/live/demo-video.md`).
+- Scene 3 needs the live repo to still be alive: it was created 2026-11-07 with 1 day lifetimes and then extended by `chart keepalive` to at least 14 days, so it should be alive, but run `chart status arkiv::z5b15ZhFLNackCqiyAL5y4dMj4MFGfVrtgLmZ9PPDU1AH` first to confirm.
+- Do one dry clone of the live rid in a scratch `$CHARTER_HOME` right before recording to confirm it still resolves and prints `c9cf57a feat: v1`.
 - Scene 6: pre-post the grant, the issue and the receipt blobs (each 30,000-byte blob op takes about 4 to 6 s and costs about 0.0027 tGLM), and pre-fund the agent, escrow and bank wallets, so the take only shows the claim, the fold and the payout.
 - Scene 6 on Rabdi: only claim it is live if that run completed uninterrupted; otherwise keep the "in-memory chain" caption.
 - Never type or echo `ARKIV_ACCESS_KEY`; the tape sources it from a mode 600 file in a hidden step.
-- Never show: seed files, `$ARKIV_GIT_HOME/keys`, `$ARKIV_GIT_HOME/escrow/keys`, the access key, any `/Users/...` path.
+- Never show: seed files, `$CHARTER_HOME/keys`, `$CHARTER_HOME/escrow/keys`, the access key, any `/Users/...` path.
   Use `export PS1='$ '` and run from `/tmp/agl` as the tape does; check the shell history, window title and tab bar for the home directory.
 - Wallet addresses and the rid are public and fine to show; testnet only, say so in the close.
 - Keep the final cut at or under 3:00 and under 50 MB for the submission form; leave 1 s of silence at the end.
 
 ## Tweet (280 characters or fewer)
 
-arkiv-git: git hosting with no host. Stock `git push arkiv::` and `git clone arkiv::` on Arkiv's data chain, post-quantum signed (ML-DSA-65 + Ed25519), rules in pinned Rhai programs, MLS private repos. Keyless clone live on Rabdi: github.com/chayan-bit/arkiv-git
+Charter: git hosting with no host. Stock `git push arkiv::` and `git clone arkiv::` on Arkiv's data chain, post-quantum signed (ML-DSA-65 + Ed25519), rules in pinned Rhai programs, MLS private repos. Keyless clone live on Rabdi: github.com/chayan-bit/charter
 
 ## Tagline for the ETHGlobal form
 
-arkiv-git is decentralized git hosting on Arkiv: stock `git push` and `git clone` over `arkiv::` URLs, post-quantum signed refs, pinned Rhai repo programs and MLS private repos, with push, clone, branch protection and private repos shown live on the Rabdi testnet. It also lets scoped AI agents claim bounties paid by an auditable escrow and gated by RISC Zero proofs, implemented and tested on an in-memory Arkiv.
+Charter is decentralized git hosting on Arkiv: stock `git push` and `git clone` over `arkiv::` URLs, post-quantum signed refs, pinned Rhai repo programs and MLS private repos, with push, clone, branch protection and private repos shown live on the Rabdi testnet. It also lets scoped AI agents claim bounties paid by an auditable escrow and gated by RISC Zero proofs, implemented and tested on an in-memory Arkiv.

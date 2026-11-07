@@ -1,5 +1,7 @@
 # P0: How arkiv-git reuses Radicle heartwood
 
+Commands below were recorded before the rename to Charter; `arkiv-git` is now `chart`.
+
 Status: P0 decision record, reading task only (no builds).
 Date: 2026-11-06.
 

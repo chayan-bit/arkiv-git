@@ -54,15 +54,15 @@ CobOpBody = {
 
 ## Writing
 
-- `arkiv-git-sync::cob::post` validates the body, signs it and sends one create op from the author's control address, since `cob` is a control-plane kind.
+- `charter-sync::cob::post` validates the body, signs it and sends one create op from the author's control address, since `cob` is a control-plane kind.
 - A writer with no bind for the repo gets its `peer` and `bind_0` entities in the same tx, which also makes it a known identity.
 - Funding goes through the existing rolling top-up from the wallet.
-- The entity lifetime is the control lifetime (`ARKIV_GIT_CONTROL_LIFETIME`, default 182.5 days).
+- The entity lifetime is the control lifetime (`CHARTER_CONTROL_LIFETIME`, default 182.5 days).
 - An invalid or oversize op fails with `E_BAD_FORMAT` before anything is sent.
 
 ## Verification
 
-`arkiv-git-core::verify_ops` takes the observed entities and the known peer keys and returns `Vec<VerifiedOp { id, author, body, arkiv_order }>`.
+`charter-core::verify_ops` takes the observed entities and the known peer keys and returns `Vec<VerifiedOp { id, author, body, arkiv_order }>`.
 It walks the entities in Arkiv creation order and drops, never errors on, any op that:
 
 1. fails decoding, the canonical re-encode check, the field rules or the attribute check;
@@ -81,13 +81,13 @@ It walks the entities in Arkiv creation order and drops, never errors on, any op
 
 ## Reading
 
-- `arkiv-git-sync::cob::list(rid, object, type_name)` queries `kind = cob AND rid [AND ag.cob] [AND ag.type]` with the standard offset paging (100 rows per page, count check), resolves each signer's `peer` document, and returns `verify_ops` of the result.
+- `charter-sync::cob::list(rid, object, type_name)` queries `kind = cob AND rid [AND ag.cob] [AND ag.type]` with the standard offset paging (100 rows per page, count check), resolves each signer's `peer` document, and returns `verify_ops` of the result.
 
 ## CLI
 
-- `arkiv-git op post --repo <rid> --type <t> --action <a> [--object <id>] [--parent <id>...] --payload-json '<json>'` converts the JSON to canonical CBOR and prints the op id in hex.
+- `chart op post --repo <rid> --type <t> --action <a> [--object <id>] [--parent <id>...] --payload-json '<json>'` converts the JSON to canonical CBOR and prints the op id in hex.
 - JSON floats (including `1.0`) are rejected with `E_BAD_FORMAT`; map keys are sorted by their encoded bytes.
-- `arkiv-git op list --repo <rid> [--object <id>] [--type <t>] [--json]` prints the verified ops in order, one line each, or one JSON array.
+- `chart op list --repo <rid> [--object <id>] [--type <t>] [--json]` prints the verified ops in order, one line each, or one JSON array.
 - In JSON output, byte strings show as `{"$bytes": "<hex>"}`, non-text map keys as their JSON text, and integers outside the i64 and u64 ranges as decimal strings.
 
 ## Not in this version

@@ -1,5 +1,7 @@
 # P0 gate: OpenMLS with X-Wing (ML-KEM-768 + X25519)
 
+Commands below were recorded before the rename to Charter; `arkiv-git` is now `chart`.
+
 Date: 2026-11-06.
 
 ## Verdict

@@ -34,14 +34,14 @@ A delegate first creates one grants object (`op post --type xyz.arkiv.agent --ac
   `op.ts` is not used because the agent writes it.
 - A later grant for the same agent replaces the earlier one, including a revoked one.
 - Only a human delegate may grant: a non-delegate's grant would confer nothing a fresh key does not already have, so sub-agent grants are left out.
-- `arkiv-git keys show` prints the nid in `z` base58 form; its hex form is what goes in `agent`.
+- `chart keys show` prints the nid in `z` base58 form; its hex form is what goes in `agent`.
 
 ## Rules the program enforces
 
 `programs/agent-bounty.rhai` is `bounty.rhai` plus an "Agent delegation" section.
 
 1. An op whose author holds a grant is checked before any other rule: it is ignored if the grant was revoked, if its order is past `until`, or if its scope is not granted.
-2. Every ignored op is recorded in `state.rejected` under its op id with the reason, so `arkiv-git program status` shows it.
+2. Every ignored op is recorded in `state.rejected` under its op id with the reason, so `chart program status` shows it.
 3. A revoke takes effect after its own order; agent ops folded before it keep their effect.
 4. An agent is never a delegate: `is_human_delegate` excludes any granted key, even one listed as a delegate, so an agent can neither grant, nor approve, nor record a merge.
 5. Approvals (`xyz.arkiv.review` `approve` with `{patch}`) count only from a human delegate who is not the patch author, so an agent's self-approval is ignored and recorded.
@@ -63,13 +63,13 @@ A program such as `ci-attested.rhai` or `sealed-patch.rhai` gets scoped agents b
 
 ## The agent loop
 
-`crates/arkiv-git-cli/tests/agent_bounty.rs` runs the whole loop on the in-memory fake through the real binaries.
+`crates/charter-cli/tests/agent_bounty.rs` runs the whole loop on the in-memory fake through the real binaries.
 
 1. Alice (delegate) appoints an escrow, pins `agent-bounty.rhai`, grants the agent `patch` with a cap, opens an issue with a bounty and deposits it.
-2. The agent, in its own `ARKIV_GIT_HOME`, polls `arkiv-git op list --repo <url> --json`, picks the first issue with a bounty that no patch names, commits and pushes the commit to its own namespace.
-3. It runs `arkiv-git op attach-proof --type xyz.arkiv.patch --action create --payload-json '{head, issue}' --receipt <file> --public <file>`, which posts the committed real receipt as blob ops (skipping chunks already on the repo) and then the patch with `proofs: [...]`; a second poll finds nothing open.
+2. The agent, in its own `CHARTER_HOME`, polls `chart op list --repo <url> --json`, picks the first issue with a bounty that no patch names, commits and pushes the commit to its own namespace.
+3. It runs `chart op attach-proof --type xyz.arkiv.patch --action create --payload-json '{head, issue}' --receipt <file> --public <file>`, which posts the committed real receipt as blob ops (skipping chunks already on the repo) and then the patch with `proofs: [...]`; a second poll finds nothing open.
 4. Alice fetches the agent's branch from `arkiv::<rid>/<agent nid>`; her push of `main` is refused until she approves, then she approves, records the merge and pushes.
-5. `program status` shows the `pay` obligation to the agent, `proven: true`, and the agent's out-of-scope comment as rejected; `arkiv-git escrow run --once` pays it and a keyless `escrow audit` is clean.
+5. `program status` shows the `pay` obligation to the agent, `proven: true`, and the agent's out-of-scope comment as rejected; `chart escrow run --once` pays it and a keyless `escrow audit` is clean.
 
 With the real CLI the loop is the same commands in a shell loop: `op list --json`, `git push`, `op attach-proof`; `docs/p3/mcp.md` exposes them to an AI agent as MCP tools.
 

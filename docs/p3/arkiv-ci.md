@@ -1,9 +1,9 @@
-# Developing arkiv-git on Arkiv
+# Developing Charter on Arkiv
 
 Status: implemented and tested on the `mem:` backend; the live switch on Rabdi is run by the coordinator.
 Date: 2026-11-07.
 
-arkiv-git's own source lives in an Arkiv repo, and its CI gate is a repo program.
+Charter's own source lives in an Arkiv repo, and its CI gate is a repo program.
 The canonical repo is `arkiv::zBZ3MRTENmgPBebpq97ZPTbxeFZNaS8VX6Es25hpdJsSJ`, with one delegate (`zFUx2fHef7octbuyEJ4DrCArrLSRmAKwMtvf8zQa5gbKG`) and quorum 1.
 GitHub is now only a read-only mirror and the host of release binaries.
 The canonical source, the patches, the reviews and the CI gate all live on Arkiv.
@@ -13,10 +13,10 @@ The canonical source, the patches, the reviews and the CI gate all live on Arkiv
 Every step is a signed op or a signed push on Arkiv; nothing depends on a server.
 
 1. Issue: anyone posts an `xyz.arkiv.issue` op describing the work.
-2. Patch: the contributor runs `scripts/arkiv-patch.sh <url> <branch>`, which pushes the branch to the contributor's own namespace and posts an `xyz.arkiv.patch` op `{title, head, branch}`.
+2. Patch: the contributor runs `scripts/chart-patch.sh <url> <branch>`, which pushes the branch to the contributor's own namespace and posts an `xyz.arkiv.patch` op `{title, head, branch}`.
    Running it again after new commits revises the same patch with the new head.
-3. CI attestation: a runner running `scripts/arkiv-ci.sh` sees the patch head, tests it, and posts an `xyz.arkiv.attest` `ci` op `{head, status, suite, log_sha256, duration_s}` signed by the runner key.
-4. Approval: a delegate runs `scripts/arkiv-merge.sh <url> <patch>`, which first checks in `arkiv-git program status` that CI passed at the patch head and stops if it did not.
+3. CI attestation: a runner running `scripts/chart-ci.sh` sees the patch head, tests it, and posts an `xyz.arkiv.attest` `ci` op `{head, status, suite, log_sha256, duration_s}` signed by the runner key.
+4. Approval: a delegate runs `scripts/chart-merge.sh <url> <patch>`, which first checks in `chart program status` that CI passed at the patch head and stops if it did not.
    It then posts an `xyz.arkiv.review` `approve` op `{patch, head}` unless the quorum already approved that head.
 5. Merge: the same script pushes `main` to the patch head.
    The remote helper folds the pinned program with that push appended and refuses with `E_PROGRAM_REJECTED` before any transaction if the program would reject it.
@@ -33,9 +33,9 @@ An attester's latest attestation for a head wins, so a later `fail` overrides an
 Attestations from keys outside `attesters()`, and attestations for any other commit, are ignored.
 A rejection says what is missing, for example `main at <head> needs 1 passing CI attestations (has 0)`, or the delegate approvals, or both.
 Other refs follow the default rule (fast-forward of the accepted head).
-The defaults are the arkiv-git CI runner `z76sCb7au55NQrrbUC8YdoGoLSnwqw5vBvFzumNtjCBoi` as the only attester and `need() = 1`.
-Programs take hex nids; `arkiv_git_sync::ids::parse_id` converts the `z` form.
-The state JSON (`program status`) carries `ci: {head: {attester: status}}`, `patches`, `need` and `quorum`, which is what `arkiv-merge.sh` reads.
+The defaults are the Charter CI runner `z76sCb7au55NQrrbUC8YdoGoLSnwqw5vBvFzumNtjCBoi` as the only attester and `need() = 1`.
+Programs take hex nids; `charter_sync::ids::parse_id` converts the `z` form.
+The state JSON (`program status`) carries `ci: {head: {attester: status}}`, `patches`, `need` and `quorum`, which is what `chart-merge.sh` reads.
 It also carries `main` (accepted main heads) and `releases`, the signed release records (docs/p3/releases.md).
 
 ## Trust model
@@ -51,20 +51,21 @@ The delegate approval stays a separate condition, so a runner alone can never mo
 ## Running the runner
 
 ```sh
-export ARKIV_GIT_HOME=~/.config/arkiv-git/ci-runner   # the runner identity, funded
-scripts/arkiv-ci.sh --repo arkiv::zBZ3MRTENmgPBebpq97ZPTbxeFZNaS8VX6Es25hpdJsSJ          # loop
-scripts/arkiv-ci.sh --repo arkiv::zBZ3MRTENmgPBebpq97ZPTbxeFZNaS8VX6Es25hpdJsSJ --once   # one pass
+export CHARTER_HOME=~/.config/chart/ci-runner   # the runner identity, funded
+scripts/chart-ci.sh --repo arkiv::zBZ3MRTENmgPBebpq97ZPTbxeFZNaS8VX6Es25hpdJsSJ          # loop
+scripts/chart-ci.sh --repo arkiv::zBZ3MRTENmgPBebpq97ZPTbxeFZNaS8VX6Es25hpdJsSJ --once   # one pass
 ```
 
 Each round lists the ops and fetches the canonical `main`.
 It skips patch heads already in `main` (for example patches merged before the gate was pinned) and heads this runner already attested.
 For every other patch head it fetches the author's branches from `<url>/<author nid>`, checks the head out in a clean detached worktree and runs the suite there.
 The default suite is the cargo part of `.github/workflows/ci.yml`: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings` and `cargo test --workspace --all-features`, wrapped in `mac-heavy` when it is on `PATH`.
-`ARKIV_CI_CMD` replaces the suite (run with `sh -c`), `ARKIV_CI_SUITE` names it in the payload (default: the command), `ARKIV_CI_DIR` moves the cache (default `~/.cache/arkiv-ci`), and `ARKIV_CI_INTERVAL` sets the seconds between rounds (default 60).
+`CHARTER_CI_CMD` replaces the suite (run with `sh -c`), `CHARTER_CI_SUITE` names it in the payload (default: the command), `CHARTER_CI_DIR` moves the cache (default `~/.cache/charter-ci`, or `~/.cache/arkiv-ci` if only that one exists), and `CHARTER_CI_INTERVAL` sets the seconds between rounds (default 60).
+The pre-rename `ARKIV_CI_*` names still work as fallbacks.
 Logs stay in the cache under `logs/<head>.log`; the payload carries their SHA-256.
 The script posts `pass` only when the suite exits 0 and `fail` for exit codes 1 to 128.
 A suite killed by a signal, an interrupted runner, or a failed fetch or checkout posts nothing, and the head is retried in the next round.
-It needs `arkiv-git`, `git` and `jq` on `PATH`.
+It needs `chart`, `git` and `jq` on `PATH`.
 
 ## Cost per patch
 
@@ -85,5 +86,5 @@ Changes reach GitHub only through this script; pull requests on GitHub are not m
 - The runner trusts its own machine; the suite runs unsandboxed with the runner user's permissions, so run it on a dedicated host or account.
 - Logs are not published on Arkiv; only their hash is.
 - A head is attested once per runner; to re-run a flaky head, post a new attestation by hand or revise the patch.
-- `arkiv-patch.sh` pushes without force, so a rebased branch needs a manual `git push --force` to the author's namespace before it is re-posted.
+- `chart-patch.sh` pushes without force, so a rebased branch needs a manual `git push --force` to the author's namespace before it is re-posted.
 - The cost figures above are estimates until the first live patch records real spend.

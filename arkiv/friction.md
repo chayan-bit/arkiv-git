@@ -1,4 +1,4 @@
-# Building arkiv-git on Arkiv: friction log
+# Building Charter on Arkiv: friction log
 
 This is feedback from building a real client (Rust, git remote helper, 100 MiB packs) on the Rabdi testnet, chain id 7794095.
 Every item says what we expected, what happened, and how to reproduce it.
@@ -19,7 +19,7 @@ We list them in order of how much design work each one cost us.
 - Evidence level: SOURCE-VERIFIED by reading `src/contract.rs` and `src/tx/ops/extend.rs`; we did not run the Rust or Python SDKs against Rabdi, because the address and ABI mismatch is visible in the source.
   The TypeScript SDK (`@arkiv-network/sdk` 1.0.1) uses the current address and does work.
 - Reproduce: `cargo add arkiv-sdk`, open `src/contract.rs` in the downloaded crate, and compare the registry address with the one in the TypeScript SDK's `src/consts.ts`.
-- What we did: a Rust workspace that depends on `arkiv-bindings` from the Arkiv node repository (MIT, not on crates.io) as a git dependency pinned by commit, plus alloy, and our own raw JSON-RPC client (`crates/arkiv-git-store/src/rpc.rs`).
+- What we did: a Rust workspace that depends on `arkiv-bindings` from the Arkiv node repository (MIT, not on crates.io) as a git dependency pinned by commit, plus alloy, and our own raw JSON-RPC client (`crates/charter-store/src/rpc.rs`).
   That works, but it means a Rust developer has to know to ignore the crate with the obvious name.
 
 ## 2. `eth_getLogs` over block ranges does not work (re-run 2026-11-07)
@@ -38,7 +38,7 @@ curl -s -X POST $RPC -H 'content-type: application/json' -d \
   "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_getLogs\",\"params\":[{\"fromBlock\":\"$(printf '0x%x' $((HEAD-1000)))\",\"toBlock\":\"$(printf '0x%x' $HEAD)\"}]}"
 ```
 
-- Impact: no rule in arkiv-git may depend on scanning logs.
+- Impact: no rule in Charter may depend on scanning logs.
   The order of two entities (which of two anchors for the same sequence number came first) is taken from query result order, which Arkiv documents as creation order: by transaction (block, then index), then by entity key inside one transaction.
 - Workaround: ordering from query results (`docs/p1/design.md` section 3.2).
 
@@ -93,7 +93,7 @@ q '{"jsonrpc":"2.0","id":1,"method":"arkiv_query","params":["$owner != addr(0x00
     We did not isolate this further, and we did not isolate who spent the budget (our probes, an aborted earlier run, or other users behind the same IP).
 - Also true on a healthy anonymous call (re-run 2026-11-07): the response carries `RateLimit: limit=2000, remaining=1980, reset=2`, a separate per-IP request window.
 - Impact: a real client needs an access key from hub.arkiv.network, which is wallet sign-in plus a captcha, so it is a human step that cannot be scripted in CI.
-  arkiv-git reads the key from `ARKIV_ACCESS_KEY`, sends it as `X-API-KEY`, waits out `Retry-After` for a bounded time on a 429, and then fails with `E_RATE_LIMITED`.
+  Charter reads the key from `ARKIV_ACCESS_KEY`, sends it as `X-API-KEY`, waits out `Retry-After` for a bounded time on a 429, and then fails with `E_RATE_LIMITED`.
   With a key, the live 10 MiB gate on 2026-11-07 saw no 429 waits.
 - Reproduce (do not run this against a shared IP casually): loop `arkiv_query` anonymously, for example a count query, about 1,100 times without waiting, and read the `RateLimit`, `Retry-After` and `Arkiv-Cost` headers on the failing call.
   Then call the TypeScript SDK's `select().from()...` read during the lockout and watch it not return.
@@ -102,7 +102,7 @@ q '{"jsonrpc":"2.0","id":1,"method":"arkiv_query","params":["$owner != addr(0x00
 
 - Expected: a documented maximum response size, because a page of 100 entities can carry up to 100 x 128 KiB of `bytes`.
 - Actual: the docs say the RPC edge "may cap" response size and publish no number.
-- Impact: arkiv-git cannot compute a safe page size.
+- Impact: Charter cannot compute a safe page size.
   It starts at 16 chunk bodies per page (about 1 MiB of payload) and halves down to 1 on HTTP 413, a 5xx or a timeout.
   We did not measure where the cap is, so the starting size is a guess.
 
@@ -113,7 +113,7 @@ q '{"jsonrpc":"2.0","id":1,"method":"arkiv_query","params":["$owner != addr(0x00
   The node's api-spec says a transaction to a non-Arkiv address reverts, while its tokenomics doc and the live node treat it as a plain value transfer (21,326 gas for a call with data).
 - Reproduce: `q '{"jsonrpc":"2.0","id":1,"method":"eth_estimateGas","params":[{"from":"0x0000000000000000000000000000000000000001","data":"0x6080"}]}'`.
 - Impact: repo programs, bounties and escrow cannot be contracts on this chain.
-  arkiv-git keeps every rule client verified, and treats any on-chain settlement as a separate EVM chain that stores only hashes pointing at Arkiv entity keys.
+  Charter keeps every rule client verified, and treats any on-chain settlement as a separate EVM chain that stores only hashes pointing at Arkiv entity keys.
   The Arkiv docs we read do not say how contracts are intended to reach Arkiv data.
 
 ## 9. At most 16 transactions per account per block, cause unknown, and a slow ramp
@@ -124,12 +124,12 @@ q '{"jsonrpc":"2.0","id":1,"method":"arkiv_query","params":["$owner != addr(0x00
   - No block ever held more than 16 transactions from that account, and 16 was reached in three separate bursts (24 KiB creates, 1 KiB creates, plain transfers).
   - A flood of 200 plain transfers took 47 consecutive blocks, about 2 per block for the first 20 blocks and ramping up to 16 per block at the end.
   - We could not find a cause in the node source or the docs, and we did not test more than 200 pending.
-- Impact: arkiv-git's pipeline allows 16 unconfirmed transactions per sender and treats that as the ceiling.
+- Impact: Charter's pipeline allows 16 unconfirmed transactions per sender and treats that as the ceiling.
 
 ## 10. Push throughput in practice is about 0.6 chunk transactions per block
 
 - Expected: with 64 KiB chunks and 30M gas per block, up to about 11 chunks per block at a 1-day lifetime, so a 100 MiB push in about 5 minutes at the gas-bound best case and about 12 minutes at a 4-per-block average.
-- Actual, live gate 2026-11-07: 10 MiB in 161 chunks took 519.7 s over 261 blocks and 171 transactions, about 0.6 chunk transactions per block, against 4 per block allowed by arkiv-git's own pacing (which keeps blocks under half full so the base fee stays at its 1 gwei floor).
+- Actual, live gate 2026-11-07: 10 MiB in 161 chunks took 519.7 s over 261 blocks and 171 transactions, about 0.6 chunk transactions per block, against 4 per block allowed by Charter's own pacing (which keeps blocks under half full so the base fee stays at its 1 gwei floor).
   The base fee stayed at 1 gwei at start and at peak.
 - We have not profiled the cause.
   Per-transaction RPC round trips (estimate gas, send, receipt polls) are our leading suspect, and some of it may be in our client rather than Arkiv, so this is a measurement and not a bug report.
@@ -152,7 +152,7 @@ q '{"jsonrpc":"2.0","id":1,"method":"arkiv_query","params":["$owner != addr(0x00
 
 - What it does: `entityNonce(address)`, an `eth_call` to the Arkiv registry `0x4400000000000000000000000000000000000044` with selector `0x36917bfd`, returns how many entities an address has ever created, live or not.
 - Why we depend on it: it gives an exact completeness check without logs or history.
-  If an address's live entity count (`$creator = addr(...)` with `select: {count: true}`) is below its `entityNonce`, something it created has expired or been deleted, and arkiv-git fails closed instead of showing a silently older repo head.
+  If an address's live entity count (`$creator = addr(...)` with `select: {count: true}`) is below its `entityNonce`, something it created has expired or been deleted, and Charter fails closed instead of showing a silently older repo head.
 - Actual: the node's api-spec lists `entityNonce(owner)` under "Account & nonce reads" and marks the exact method names as open.
   It works on Rabdi (re-run 2026-11-07: an address that has created entities returned 103 in the 32-byte result, while its transaction count was 317, so the two differ as expected).
 - Ask: please document `entityNonce` as a supported call with the selector and registry address above, and promise it keeps counting creations and not live entities.
@@ -162,8 +162,8 @@ q '{"jsonrpc":"2.0","id":1,"method":"arkiv_query","params":["$owner != addr(0x00
 ## 13. Smaller items
 
 - Expiry is silent: an entity leaves the query surface with no event, and the purge removes at most 10 entities per block.
-  arkiv-git compensates with `status` and `keepalive`, and warns when the minimum expiry is under 7 days.
-- Deleting refunds nothing, so "create long then delete early" is never right; arkiv-git creates for 30 days and renews.
+  Charter compensates with `status` and `keepalive`, and warns when the minimum expiry is under 7 days.
+- Deleting refunds nothing, so "create long then delete early" is never right; Charter creates for 30 days and renews.
 - Permanent entities are described in the api-spec but refused by the node today (the tokenomics doc says so).
 - Pricing and limits are fixed at genesis and called placeholders; mainnet pricing and whether a mainnet exists are not stated in the docs we read, so every cost figure in this repo is testnet-calibrated.
 - Testnets are replaced (Tiramisu, Braga and Kaolin were retired, and Malpua was created on 2026-11-03), so integration tests cannot rely on persistent testnet state.

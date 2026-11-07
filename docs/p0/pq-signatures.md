@@ -1,5 +1,7 @@
 # P0: Post-quantum signature layer (ML-DSA)
 
+Commands below were recorded before the rename to Charter; `arkiv-git` is now `chart`.
+
 Status: P0 design record.
 Date: 2026-11-06.
 Decided by the user, not reopened here: ML-DSA signatures from day one for identities, signed refs, ref anchors, collaborative objects and MLS credentials.

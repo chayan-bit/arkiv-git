@@ -2,12 +2,12 @@
 
 Status: implemented, tested on the in-memory fake, and driven live on Rabdi by a Codex agent (`docs/live/agent-bounty.md`).
 Date: 2026-11-07.
-Builds on `docs/p3/agents.md` (scoped grants), `docs/p3/cob-ops.md`, `docs/p3/escrow.md`; code in `crates/arkiv-git-mcp`.
+Builds on `docs/p3/agents.md` (scoped grants), `docs/p3/cob-ops.md`, `docs/p3/escrow.md`; code in `crates/charter-mcp`.
 
 ## Why
 
 `docs/p3/agents.md` gives an agent key bounded authority, but the agent still has to drive a CLI by parsing text.
-`arkiv-git-mcp` exposes the same commands as Model Context Protocol tools with JSON schemas, so any MCP client (Claude Code, Claude Desktop, other agent harnesses) can find a bounty, push a fix, attach a proof and post the patch.
+`chart-mcp` exposes the same commands as Model Context Protocol tools with JSON schemas, so any MCP client (Claude Code, Claude Desktop, other agent harnesses) can find a bounty, push a fix, attach a proof and post the patch.
 
 ## SDK survey
 
@@ -21,9 +21,9 @@ We picked `rmcp`: it is the reference implementation, it is actively maintained,
 
 ## Design
 
-The server is a thin wrapper: every tool runs one `arkiv-git` (or `git`) child process, so signing, fetching, sealed views of private repos, program folds and escrow rules stay in the CLI with no duplication.
-It finds the CLI through `ARKIV_GIT_BIN`, else `arkiv-git` next to its own executable, else `arkiv-git` on `PATH`, and it puts that directory first on the children's `PATH` so `git` finds `git-remote-arkiv`.
-Children inherit the server's environment, so the agent's identity is whatever `ARKIV_GIT_HOME` points at and the backend is `ARKIV_GIT_BACKEND` (Rabdi by default, with the optional `ARKIV_ACCESS_KEY`).
+The server is a thin wrapper: every tool runs one `chart` (or `git`) child process, so signing, fetching, sealed views of private repos, program folds and escrow rules stay in the CLI with no duplication.
+It finds the CLI through `CHARTER_BIN`, else `chart` next to its own executable, else `chart` on `PATH`, and it puts that directory first on the children's `PATH` so `git` finds `git-remote-arkiv`.
+Children inherit the server's environment, so the agent's identity is whatever `CHARTER_HOME` points at and the backend is `CHARTER_BACKEND` (Rabdi by default, with the optional `ARKIV_ACCESS_KEY`).
 No tool takes or returns key material.
 
 A failed child is a tool error (`isError: true`) whose text is `{"code", "message", "exit", "stdout"}`.
@@ -35,33 +35,33 @@ A failed child is a tool error (`isError: true`) whose text is `{"code", "messag
 | --- | --- | --- | --- |
 | `repo_clone` | `repo`, `dir` | `git clone arkiv::<rid> <dir>` | `{dir}` |
 | `git_push` | `repo`, `dir`, `branch`, optional `message` | `git add -A`, `git commit` (when `message` is set), `git push <url> HEAD:refs/heads/<branch>` | `{head}` |
-| `op_list` | `repo`, optional `type`, `action`, `object` | `arkiv-git op list --json` | JSON array of verified ops `{id, object, author, type, action, parents, ts_ms, block, payload}` |
-| `op_post` | `repo`, `type`, `action`, optional `object`, `parents`, `payload` | `arkiv-git op post` | `{id}` |
-| `attach_proof` | `repo`, `payload`, `receipt`, `public`, optional `type` (default `xyz.arkiv.patch`), `action` (default `create`), `object`, `parents` | `arkiv-git op attach-proof` | `{id}` of the op that carries `proofs` |
-| `program_status` | `repo` | `arkiv-git program status` | the fold: state, heads, rejected pushes, obligations |
-| `escrow_status` | `repo` | `arkiv-git escrow audit` (keyless) | the ledger; a flagged ledger is an error with code `flagged` |
+| `op_list` | `repo`, optional `type`, `action`, `object` | `chart op list --json` | JSON array of verified ops `{id, object, author, type, action, parents, ts_ms, block, payload}` |
+| `op_post` | `repo`, `type`, `action`, optional `object`, `parents`, `payload` | `chart op post` | `{id}` |
+| `attach_proof` | `repo`, `payload`, `receipt`, `public`, optional `type` (default `xyz.arkiv.patch`), `action` (default `create`), `object`, `parents` | `chart op attach-proof` | `{id}` of the op that carries `proofs` |
+| `program_status` | `repo` | `chart program status` | the fold: state, heads, rejected pushes, obligations |
+| `escrow_status` | `repo` | `chart escrow audit` (keyless) | the ledger; a flagged ledger is an error with code `flagged` |
 
 `repo` is `arkiv::<rid>` or the bare rid.
 `action` filtering in `op_list` happens in the server, because the CLI filters only by type and object.
 `git_push` runs git in the server process, so an agent whose own shell is sandboxed without network (Codex `workspace-write`) can still push, and the access key stays in the server's environment instead of the model's shell.
 Relative `dir`, `receipt` and `public` paths resolve against the server's working directory.
 
-`arkiv-git op attach-proof` is the CLI half of `attach_proof`: it chunks the receipt into `xyz.arkiv.blob` ops of at most 30,000 bytes, skips chunks whose `sha256` is already posted on the repo (so a retry after `E_INSUFFICIENT_FUNDS` only posts what is missing), then posts the given op with `{kind: "risc0", receipt, chunks, public}` appended to its payload's `proofs`.
+`chart op attach-proof` is the CLI half of `attach_proof`: it chunks the receipt into `xyz.arkiv.blob` ops of at most 30,000 bytes, skips chunks whose `sha256` is already posted on the repo (so a retry after `E_INSUFFICIENT_FUNDS` only posts what is missing), then posts the given op with `{kind: "risc0", receipt, chunks, public}` appended to its payload's `proofs`.
 
 ## Setup with Claude Code
 
 Build or install both binaries so they sit in one directory:
 
 ```sh
-cargo install --path crates/arkiv-git-cli
-cargo install --path crates/arkiv-git-mcp
-arkiv-git keys init   # the agent's own identity, never a human's key
+cargo install --path crates/charter-cli
+cargo install --path crates/charter-mcp
+chart keys init   # the agent's own identity, never a human's key
 ```
 
 Register the server for the current project:
 
 ```sh
-claude mcp add arkiv-git -e ARKIV_GIT_HOME="$HOME/.arkiv-git-agent" -- arkiv-git-mcp
+claude mcp add charter -e CHARTER_HOME="$HOME/.charter-agent" -- chart-mcp
 ```
 
 Or commit an `.mcp.json`:
@@ -69,9 +69,9 @@ Or commit an `.mcp.json`:
 ```json
 {
   "mcpServers": {
-    "arkiv-git": {
-      "command": "arkiv-git-mcp",
-      "env": { "ARKIV_GIT_HOME": "/path/to/agent/.arkiv-git" }
+    "charter": {
+      "command": "chart-mcp",
+      "env": { "CHARTER_HOME": "/path/to/agent/.charter" }
     }
   }
 }
@@ -82,7 +82,7 @@ A headless agent run allows only the MCP tools, git and file edits:
 
 ```sh
 claude -p "<task>" --mcp-config .mcp.json --strict-mcp-config \
-  --allowedTools "mcp__arkiv-git__*" Read Edit Write
+  --allowedTools "mcp__charter__*" Read Edit Write
 ```
 
 ## Setup with Codex
@@ -90,15 +90,15 @@ claude -p "<task>" --mcp-config .mcp.json --strict-mcp-config \
 Register the server once:
 
 ```sh
-codex mcp add arkiv-git --env ARKIV_GIT_HOME="$HOME/.arkiv-git-agent" -- arkiv-git-mcp
+codex mcp add charter --env CHARTER_HOME="$HOME/.charter-agent" -- chart-mcp
 ```
 
 Or put it in `~/.codex/config.toml`:
 
 ```toml
-[mcp_servers.arkiv-git]
-command = "arkiv-git-mcp"
-env = { ARKIV_GIT_HOME = "/path/to/agent/.arkiv-git" }
+[mcp_servers.charter]
+command = "chart-mcp"
+env = { CHARTER_HOME = "/path/to/agent/.charter" }
 env_vars = ["ARKIV_ACCESS_KEY"]        # forwarded by name, never written here
 tool_timeout_sec = 900                 # attach_proof posts several blob ops
 default_tools_approval_mode = "approve"
@@ -109,12 +109,12 @@ The live demo passes the same settings per run with `-c` and leaves the user con
 ```sh
 codex exec --json --ephemeral --ignore-user-config --skip-git-repo-check \
   -s workspace-write -C <session dir> \
-  -c 'mcp_servers.arkiv-git.command="/abs/path/arkiv-git-mcp"' \
-  -c 'mcp_servers.arkiv-git.cwd="<session dir>"' \
-  -c 'mcp_servers.arkiv-git.env={ARKIV_GIT_HOME="<agent home>/.arkiv-git"}' \
-  -c 'mcp_servers.arkiv-git.env_vars=["ARKIV_ACCESS_KEY"]' \
-  -c 'mcp_servers.arkiv-git.tool_timeout_sec=900' \
-  -c 'mcp_servers.arkiv-git.default_tools_approval_mode="approve"' \
+  -c 'mcp_servers.charter.command="/abs/path/chart-mcp"' \
+  -c 'mcp_servers.charter.cwd="<session dir>"' \
+  -c 'mcp_servers.charter.env={CHARTER_HOME="<agent home>/.charter"}' \
+  -c 'mcp_servers.charter.env_vars=["ARKIV_ACCESS_KEY"]' \
+  -c 'mcp_servers.charter.tool_timeout_sec=900' \
+  -c 'mcp_servers.charter.default_tools_approval_mode="approve"' \
   "<task>"
 ```
 
@@ -122,17 +122,17 @@ Without `default_tools_approval_mode = "approve"`, `codex exec` refuses every MC
 
 ## Tests
 
-`crates/arkiv-git-mcp/src/tests.rs` drives every tool through the real `arkiv-git` binary on the file-persisted fake chain: post and list with type and action filters, clone, `git_push` of an edit to the pusher's namespace, `attach_proof` twice to check blob reuse and the `proofs` entry, `program_status`, and coded errors from the CLI (`E_*` with exit 1), from git (exit 128) and from the escrow audit.
-`crates/arkiv-git-cli/tests/agent_bounty.rs` now posts its proof with `op attach-proof` and still checks `proven: true`, the approval gate and the escrow payout end to end.
+`crates/charter-mcp/src/tests.rs` drives every tool through the real `chart` binary on the file-persisted fake chain: post and list with type and action filters, clone, `git_push` of an edit to the pusher's namespace, `attach_proof` twice to check blob reuse and the `proofs` entry, `program_status`, and coded errors from the CLI (`E_*` with exit 1), from git (exit 128) and from the escrow audit.
+`crates/charter-cli/tests/agent_bounty.rs` now posts its proof with `op attach-proof` and still checks `proven: true`, the approval gate and the escrow payout end to end.
 A stdio handshake (`initialize`, `tools/list`) against the built binary lists the tools with their schemas.
 
 ## Live demo
 
 `demo/agent-bounty.sh` runs the whole bounty with a headless Codex CLI as the agent: `setup` creates the alice, escrow, agent and bank identities, `alice` creates the repo, appoints the escrow, pins `agent-bounty.rhai` with `agent_proof()` set to `"required"`, grants the agent `patch` with a cap, opens an issue whose `spec_hash` matches the committed receipt and deposits the bounty, `agent` runs `codex exec` with this MCP server and a workspace-write sandbox without network, `merge` shows `main` refusing the agent head until alice approves, records the merge and runs `escrow run --once`, and `verify` runs the keyless audit and reads the payout tx and the agent's balance delta from the chain.
 `demo/show-agent.py` turns the `codex exec --json` events into one line per agent message, MCP call, edit and shell command.
-`crates/arkiv-git-cli/tests/rabdi_agent.rs` funds the demo from the throwaway key (one transfer, at most 0.08 tGLM) and sweeps it back; `demo/agent-bounty.tape` records the live phases.
+`crates/charter-cli/tests/rabdi_agent.rs` funds the demo from the throwaway key (one transfer, at most 0.08 tGLM) and sweeps it back; `demo/agent-bounty.tape` records the live phases.
 Results, transactions and costs are in `docs/live/agent-bounty.md`.
-Video of the live run: https://raw.githubusercontent.com/chayan-bit/arkiv-git/demo-assets/agent-bounty-codex-live.mp4 (GIF: https://raw.githubusercontent.com/chayan-bit/arkiv-git/demo-assets/agent-bounty-codex-live.gif).
+Video of the live run: https://raw.githubusercontent.com/chayan-bit/charter/demo-assets/agent-bounty-codex-live.mp4 (GIF: https://raw.githubusercontent.com/chayan-bit/charter/demo-assets/agent-bounty-codex-live.gif).
 
 A headless Claude Code run was tried first and could not authenticate in this environment (`claude auth status` reports `loggedIn: false`; `claude -p` inside the desktop app's session fails with "OAuth session expired and could not be refreshed"); the `.mcp.json` setup above is unchanged for a logged-in Claude Code.
 
@@ -140,4 +140,4 @@ A headless Claude Code run was tried first and could not authenticate in this en
 
 - One child process per call: `op_list` and `program_status` refetch from Arkiv each time, which is fine for an agent loop but not for a hot path.
 - `program_status` returns the CLI's text lines (the state line is JSON) rather than a parsed object.
-- The server trusts its own environment: whoever starts it chooses the identity it signs with, so give an agent its own `ARKIV_GIT_HOME` and a grant, never a delegate's home.
+- The server trusts its own environment: whoever starts it chooses the identity it signs with, so give an agent its own `CHARTER_HOME` and a grant, never a delegate's home.

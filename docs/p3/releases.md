@@ -27,7 +27,7 @@ The release record is an `xyz.arkiv.release` op with action `create`, posted by 
 A delegate adds mirrors with action `revise` on the same object, with the same `artifacts` shape.
 A revise only adds locations to an artifact whose `sha256` and `size` match, and may add artifacts with new names.
 It can never change the commit or the hash of an existing artifact.
-There is no CLI for revise; use `arkiv-git op post --type xyz.arkiv.release --action revise --object <release op id> --parent <release op id> --payload-json '{"artifacts": [...]}'`.
+There is no CLI for revise; use `chart op post --type xyz.arkiv.release --action revise --object <release op id> --parent <release op id> --payload-json '{"artifacts": [...]}'`.
 
 An artifact attestation is an `xyz.arkiv.attest` op with action `artifact`: `{tag, commit, name, sha256}`.
 The attester posts it after downloading the artifact and checking that its sha256 and size match the record.
@@ -54,19 +54,19 @@ This is why v0.1.0 at `a83f7b5`, merged before the release rules were pinned, ca
 
 ## Commands
 
-`arkiv-git release publish --repo <url> --tag <t> --commit <sha> --artifact <name>=<path-or-url>[@<target>] ... [--location <name>=<url>] ... [--notes <text>]` hashes each artifact and posts the record, then prints the op id.
+`chart release publish --repo <url> --tag <t> --commit <sha> --artifact <name>=<path-or-url>[@<target>] ... [--location <name>=<url>] ... [--notes <text>]` hashes each artifact and posts the record, then prints the op id.
 A local path is read and hashed; a URL is downloaded, hashed and listed as a location.
 Every artifact needs at least one location, and every `--location` must name a given artifact.
 
-`arkiv-git release verify --repo <url> --tag <t> [--download-dir <d>]` folds the pinned program and refuses unless the release is valid, printing what is missing.
+`chart release verify --repo <url> --tag <t> [--download-dir <d>]` folds the pinned program and refuses unless the release is valid, printing what is missing.
 It then downloads each artifact from its first working location, checks sha256 and size, prints `OK <name> <sha256> <size> from <url>` and writes the file to `<d>/<name>` when asked.
 It exits non-zero on any mismatch or if no location of an artifact can be downloaded.
 Locations may be `https://`, `http://` or `file://`.
 
-`scripts/arkiv-release-attest.sh --repo <url> --tag <t>` is the attester.
-It reads the release from `arkiv-git program status`, downloads each artifact with `curl`, and posts an `artifact` attestation only if the sha256 and size match.
+`scripts/chart-release-attest.sh --repo <url> --tag <t>` is the attester.
+It reads the release from `chart program status`, downloads each artifact with `curl`, and posts an `artifact` attestation only if the sha256 and size match.
 Artifacts this key already attested with the same payload are skipped; a mismatch is reported and not attested.
-Run it with `ARKIV_GIT_HOME` set to a key listed in `attesters()`, for arkiv-git the CI runner.
+Run it with `CHARTER_HOME` set to a key listed in `attesters()`, for Charter the CI runner.
 
 ## Trust model
 

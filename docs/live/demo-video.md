@@ -1,5 +1,7 @@
 # Live demo video: every scene on Rabdi
 
+Commands below were recorded before the rename to Charter; `arkiv-git` is now `chart`.
+
 Date: 2026-11-07, recorded 04:53 to 05:03 IST.
 Network: Rabdi testnet, chain id 7794095, RPC https://rpc.rabdi.db-chain.testnet.arkiv.network, explorer https://rabdi.explorer.arkiv.network.
 Code: `main` at accd6ab plus `demo/arkiv-git.tape` and `demo/live-setup.sh` on `demo/live-video`.

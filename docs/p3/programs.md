@@ -3,7 +3,7 @@
 A repo program is a small Rhai script that decides which ref updates a repo accepts and what the repo owes.
 The identity doc pins the script by hash, so every honest client runs the same program.
 Each client folds the program over the same Arkiv-ordered ops and ref updates, so all of them compute the same state and accept the same branch heads.
-The engine lives in `crates/arkiv-git-program`; it is pure and does no I/O.
+The engine lives in `crates/charter-program`; it is pure and does no I/O.
 
 ## Pinning
 
@@ -12,7 +12,7 @@ The identity body has an optional field `13: program`, a map `{ 1: engine, 2: ha
 `hash` is `H("program", source)`, the tagged SHA-256 of the exact UTF-8 source bytes (design section 2.1).
 A body without a pin omits key 13, so its canonical CBOR, its `h` and its signatures are unchanged.
 Changing the pin is an ordinary identity revision and needs the usual delegate quorum.
-`arkiv-git program pin --repo <rid> --file <path.rhai>` compiles the script, posts its source as an op, then proposes a revision with the new pin.
+`chart program pin --repo <rid> --file <path.rhai>` compiles the script, posts its source as an op, then proposes a revision with the new pin.
 
 ## Source distribution
 
@@ -96,10 +96,10 @@ Inline receipt bytes are not supported, since every real receipt exceeds the cap
 
 ### What the program sees
 
-Before folding, `program::enforce` runs `program::proofs::attach`, which verifies every attachment with `arkiv_git_zk::journal`: the receipt must verify against the pinned guest image id and its journal must equal `public` exactly.
+Before folding, `program::enforce` runs `program::proofs::attach`, which verifies every attachment with `charter_zk::journal`: the receipt must verify against the pinned guest image id and its journal must equal `public` exactly.
 Each op then carries `op.proofs = [ #{ kind, image_id, ok, public } ]`.
 `ok` is true only for kind `risc0` with all chunks present, a matching receipt hash, a valid receipt and an exact statement match.
-`image_id` is the hex image id the client verified against (`arkiv_git_zk::image_id_hex()`), empty for other kinds.
+`image_id` is the hex image id the client verified against (`charter_zk::image_id_hex()`), empty for other kinds.
 `public` is the claimed statement as posted; trust it only when `ok` is true.
 `public` is a reserved word in Rhai, so scripts read it as `pr["public"]`.
 Receipt bytes never reach Rhai; the payload keeps only hashes and the statement.
@@ -114,7 +114,7 @@ An `xyz.arkiv.issue` create op sets `proof: "required" | "optional" | "none"` an
 A sealed `commit` op that names the issue (`issue: <issue id>`) counts when proof is required only if some entry has `ok == true`, the pinned `image_id`, `public.spec_hash` equal to the issue's `spec_hash` and `public.key_hash` equal to the commitment.
 Matching the statement is essential: `ok` alone would accept a valid proof of a different statement.
 "optional" accepts the commit either way and records `proven: true | false`; "none" ignores proofs.
-`crates/arkiv-git-sync/tests/proofs.rs` drives this with the committed real receipt: a match is accepted, and a missing proof, a tampered receipt and a valid receipt for another spec are rejected.
+`crates/charter-sync/tests/proofs.rs` drives this with the committed real receipt: a match is accepted, and a missing proof, a tampered receipt and a valid receipt for another spec are rejected.
 
 ## Fold semantics
 
@@ -129,7 +129,7 @@ The outcome holds `state_json`, the accepted and rejected pushes (with reasons),
 ## Enforcement
 
 Every client enforces the pinned program; there is no server to trust.
-The sync crate (`crates/arkiv-git-sync/src/program.rs`) builds the fold input from what P1 already verifies.
+The sync crate (`crates/charter-sync/src/program.rs`) builds the fold input from what P1 already verifies.
 
 ### Events
 
@@ -153,7 +153,7 @@ Only the refs entities of the last pre-pin push and later ones are read, so olde
 `fetch::listing` then lists the program's last accepted head of every ref instead of the delegate quorum result.
 A rejected update never moves a canonical head, so every client ignores it, including pushes forced through a modified client.
 The peer namespaces `refs/namespaces/<nid>/` still mirror each delegate's signed refs, so the rejected commits stay inspectable.
-`arkiv-git program status --repo <rid>` prints the state JSON, the canonical heads, every rejected push with its reason, and the obligations.
+`chart program status --repo <rid>` prints the state JSON, the canonical heads, every rejected push with its reason, and the obligations.
 
 ### Push
 
@@ -164,19 +164,19 @@ The check is advisory for the pusher; the binding rule is the fetch-side fold th
 
 ### Escrow hook
 
-`arkiv_git_sync::program::obligations(arkiv, rid)` fetches the repo into the cache under `$ARKIV_GIT_HOME` and returns the obligations of the pinned program (empty without a pin); `obligations_in(arkiv, repo)` takes an explicit cache.
+`charter_sync::program::obligations(arkiv, rid)` fetches the repo into the cache under `$CHARTER_HOME` and returns the obligations of the pinned program (empty without a pin); `obligations_in(arkiv, repo)` takes an explicit cache.
 An obligation may carry `due_order`, the `order` of the event that made it due; clients add `since_block`, the Arkiv block of that event, unless the program set one.
-`bounty.rhai` emits `#{ kind: "pay", to, amount, reason, key: "bounty:<issue id>", purpose: "bounty:<issue id>", due_order }`, which `arkiv-git escrow run` pays from deposits with that purpose (docs/p3/escrow.md).
+`bounty.rhai` emits `#{ kind: "pay", to, amount, reason, key: "bounty:<issue id>", purpose: "bounty:<issue id>", due_order }`, which `chart escrow run` pays from deposits with that purpose (docs/p3/escrow.md).
 
 ### Private repos
 
 A private repo enforces its program like a public one, for its members.
-`op post`, `op list`, `program pin`, `program status` and the escrow's obligation reads detect a private repo the way the remote helper does (`arkiv_git_private::ring_for`) and then run over the same `Sealed` adapter (the CLI's `for_repo!` macro).
+`op post`, `op list`, `program pin`, `program status` and the escrow's obligation reads detect a private repo the way the remote helper does (`charter_private::ring_for`) and then run over the same `Sealed` adapter (the CLI's `for_repo!` macro).
 Ops, the program source op and the identity revision that sets the pin are therefore sealed under the current epoch key, with `ag.rid` blinded, exactly like pushed entities.
 Members open them, fold them, and `program::enforce` in fetch sees them, so the helper refuses a rejected push with `E_PROGRAM_REJECTED` and a member clone gets the program's heads.
 Non-members cannot read the program, its state or the ops; `program status` fails for them with `E_NOT_MEMBER`.
 The op type (`ag.type`) and object id (`ag.cob`) stay plaintext attributes, as for any sealed entity that carries them.
-`crates/arkiv-git-cli/tests/private_programs.rs` covers enforcement, a member clone and the absence of the plaintext rid on every op entity.
+`crates/charter-cli/tests/private_programs.rs` covers enforcement, a member clone and the absence of the plaintext rid on every op entity.
 
 ### Replay protection
 
@@ -201,7 +201,7 @@ Every client re-folds the whole history on each fetch; there is no cached state.
 
 ## Dry run
 
-`arkiv-git program check --file <path.rhai> --events <events.json>` folds a local file and prints the outcome as JSON.
+`chart program check --file <path.rhai> --events <events.json>` folds a local file and prints the outcome as JSON.
 The events file is `{ "repo": { rid, delegates, quorum, name }, "events": [...] }`.
 Each event has `"event": "op"` or `"event": "push"`.
 An op has `id`, `author`, `object`, `type`, `action`, `payload` and `arkiv_order`, plus optional `rid`, `parents` and `ts_ms`.
@@ -215,7 +215,7 @@ The `programs/` directory holds six demo programs, each tested from disk in the 
 
 - `branch-protection.rhai`: `refs/heads/main` moves only to a patch head that at least `repo.quorum` delegates approved at that exact head; a revise clears the approvals.
 - `ci-attested.rhai`: `main` moves only to a commit that k of the n attesters listed at the top of the script reported as passing CI.
-- `ci-gated.rhai`: `main` moves only to a patch head with `repo.quorum` delegate approvals and k passing CI attestations from the listed runners, both at that exact head; arkiv-git's own repo runs it (docs/p3/arkiv-ci.md).
+- `ci-gated.rhai`: `main` moves only to a patch head with `repo.quorum` delegate approvals and k passing CI attestations from the listed runners, both at that exact head; Charter's own repo runs it (docs/p3/arkiv-ci.md).
   It also tracks signed release records and their artifact attestations as state (docs/p3/releases.md).
 - `bounty.rhai`: an issue bounty plus pledges becomes a `pay` obligation to the patch author once the merged patch head is accepted on `main`, and a payment receipt op clears it; the receipt's chain check happens outside the program.
 - `sealed-patch.rhai`: a commit op pins `sha256(key)`, a later reveal counts only if the key hashes to it, and unrevealed commitments are `release_key` obligations.

@@ -1,5 +1,7 @@
 # Live Rabdi: private repos, programs on private repos, proofs and timelock
 
+Commands below were recorded before the rename to Charter; `arkiv-git` is now `chart`.
+
 Date: 2026-11-07 (UTC clock 2026-11-06 22:xx).
 Network: Rabdi testnet, chain id 7794095, RPC https://rpc.rabdi.db-chain.testnet.arkiv.network, explorer https://rabdi.explorer.arkiv.network.
 Code: `crates/arkiv-git-cli/tests/rabdi_private.rs` on `test/live-private`.

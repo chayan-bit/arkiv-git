@@ -1,6 +1,6 @@
-# Who arkiv-git is for
+# Who Charter is for
 
-arkiv-git is git hosting where the host is a public data layer instead of a company.
+Charter is git hosting where the host is a public data layer instead of a company.
 You push with plain `git push`, you clone with plain `git clone`, and no server of ours sits in between.
 There are no user numbers in this file because there are no users yet; it is a hackathon project, and what follows is who it is built for.
 
@@ -14,7 +14,7 @@ There are no user numbers in this file because there are no users yet; it is a h
 - Search works from public annotations (name, language, licence, recent pushes) and every hit is checked against its identity chain before it is shown, so spam is visible as spam.
 
 What to know before relying on it: data on Arkiv expires unless someone pays to extend it.
-That is a cost you can see (`arkiv-git status`, `arkiv-git keepalive`), not a surprise, but it is a real operating task.
+That is a cost you can see (`chart status`, `chart keepalive`), not a surprise, but it is a real operating task.
 Arkiv runs a single sequencer today, so it can refuse writes; see the CROPS section of the README.
 
 ## Teams who need private repos without trusting a host
