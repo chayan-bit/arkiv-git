@@ -1,6 +1,6 @@
 [package]
 name = "arkiv-git-zk-core"
-version.workspace = true
+version = "0.1.0" # protocol constant: zk guest depends on this crate; a version change alters the image id
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
