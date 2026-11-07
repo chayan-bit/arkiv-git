@@ -1,7 +1,7 @@
 # Install
 
 Prebuilt binaries are attached to every GitHub Release, so no Nix or Rust build is needed.
-Each archive holds `git-remote-arkiv` and `arkiv-git` plus the licence files.
+Each archive holds `git-remote-arkiv`, `arkiv-git` and `arkiv-git-mcp` plus the licence files.
 Two targets are published: `aarch64-apple-darwin` (Apple Silicon macOS) and `x86_64-unknown-linux-gnu` (Linux x86_64, glibc 2.35 or newer).
 
 ## Download URL pattern

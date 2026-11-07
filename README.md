@@ -12,8 +12,7 @@ Submitted to:
 - Ethereum Foundation: "Best CROPS App" (see the `CROPS` section below).
 - ETHGlobal finalist judging.
 
-Demo video (2 minutes, recorded with VHS from [`demo/arkiv-git.tape`](demo/arkiv-git.tape)): https://github.com/chayan-bit/arkiv-git/raw/demo-assets/arkiv-git-demo.gif (MP4: https://github.com/chayan-bit/arkiv-git/raw/demo-assets/arkiv-git-demo.mp4).
-It shows push and clone over `arkiv::`, a pinned program refusing a direct push and accepting it after review, `zk verify` passing and then failing on a tampered input, `timelock open` failing with `E_TOO_EARLY`, an outsider getting `E_NOT_MEMBER` on a private repo, and a keyless clone of the live Rabdi repo below.
+Demo videos, every scene recorded live on the Rabdi testnet: the [all-live walkthrough](https://github.com/chayan-bit/arkiv-git/raw/demo-assets/arkiv-git-demo-live.mp4) (2:30, chain waits sped up 3x and captioned so) and the [AI agent bounty](https://raw.githubusercontent.com/chayan-bit/arkiv-git/demo-assets/agent-bounty-codex-live.mp4) (39 s).
 
 Notes for judges, in `arkiv/`:
 
@@ -22,6 +21,38 @@ Notes for judges, in `arkiv/`:
 - [`arkiv/reach.md`](arkiv/reach.md): who this is for.
 - [`arkiv/why-arkiv.md`](arkiv/why-arkiv.md): what users would lose if the backend were Postgres.
 - [`arkiv/how-you-use-arkiv.md`](arkiv/how-you-use-arkiv.md): how filters, ownership, expiry and permissionless extension change what users see.
+
+## Try it in 60 seconds
+
+arkiv-git's own source is hosted on Arkiv by arkiv-git, and its development runs there: every change to `main` is an Arkiv patch that the repo's pinned program accepts only with a delegate approval and a passing CI attestation posted on Arkiv by the CI runner.
+GitHub is a read-only mirror plus the host of the release binaries.
+
+```sh
+# 1. install the prebuilt binaries (macOS arm64 or Linux x86_64), see docs/install.md
+TAG=v0.1.0 TARGET=aarch64-apple-darwin   # or x86_64-unknown-linux-gnu
+mkdir -p ~/.local/bin && curl -fsSL "https://github.com/chayan-bit/arkiv-git/releases/download/$TAG/arkiv-git-$TAG-$TARGET.tar.gz" | tar xz -C ~/.local/bin git-remote-arkiv arkiv-git arkiv-git-mcp
+export PATH="$HOME/.local/bin:$PATH"
+
+# 2. clone this project from Arkiv, with no keys and no server of ours
+git clone arkiv::zBZ3MRTENmgPBebpq97ZPTbxeFZNaS8VX6Es25hpdJsSJ arkiv-git
+
+# 3. see the program that governs it, its patches and their CI attestations, read straight from Arkiv
+cd arkiv-git
+arkiv-git program status --repo arkiv::zBZ3MRTENmgPBebpq97ZPTbxeFZNaS8VX6Es25hpdJsSJ
+arkiv-git op list --repo arkiv::zBZ3MRTENmgPBebpq97ZPTbxeFZNaS8VX6Es25hpdJsSJ
+```
+
+Reads without an access key are rate limited by Arkiv, so a keyless clone may pause once for about 20 seconds.
+
+Everything below ran live on the Rabdi testnet, with tx hashes and explorer links in each report:
+
+| What | Evidence |
+| --- | --- |
+| A real AI agent (headless Codex through `arkiv-git-mcp`) claims a ZK-proof-gated bounty and the escrow pays it on-chain | [`docs/live/agent-bounty.md`](docs/live/agent-bounty.md), [video, 39 s](https://raw.githubusercontent.com/chayan-bit/arkiv-git/demo-assets/agent-bounty-codex-live.mp4) |
+| Push, clone, a program refusing a push, patch review, private repo, keyless clone, every scene live | [`docs/live/demo-video.md`](docs/live/demo-video.md), [video, 2:30](https://github.com/chayan-bit/arkiv-git/raw/demo-assets/arkiv-git-demo-live.mp4) |
+| Multi-peer patches, a 2-of-2 delegate quorum, revert and rewind, branch protection, escrow payout | [`docs/live/collab-escrow.md`](docs/live/collab-escrow.md) |
+| Private MLS repos with roles and member removal, programs on private repos, ZK sealed-patch proofs, timelock | [`docs/live/private-proofs.md`](docs/live/private-proofs.md) |
+| Developing arkiv-git on Arkiv with a CI-gated `main` | [`docs/p3/arkiv-ci.md`](docs/p3/arkiv-ci.md), [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 
 ## What it is
 
@@ -63,20 +94,18 @@ All numbers MEASURED on Rabdi through the real `git push arkiv::` and `git clone
 - Net spend: 0.4352 tGLM for the whole run (preflight predicted 0.4437), funded with rolling top-ups from a 0.59 tGLM wallet, all leftovers swept back.
 - The push ran at about 0.6 chunks per block, well under the 4 per block pacing allows; per-tx RPC round trips (estimate, send, receipt polls) are the likely cause (not yet profiled).
 
-### In progress, not merged to main
+### Merged features
 
-As of this commit none of the following is merged; each lives on its own branch and is described by what its commits and docs say, not by a release.
+Every feature below is on `main`, tested on the in-memory Arkiv in CI, and run live on Rabdi as recorded in `docs/live/`.
 
-- `feat/cob-ops`: signed collaborative-object ops (issues, patches, reviews, attestations) as a `cob` entity kind, with `arkiv-git op post` and `arkiv-git op list`; core, sync and CLI are implemented there, and the op format is in `docs/p3/cob-ops.md` on that branch.
-  Keepalive does not extend `cob` entities yet and there is no completeness check for them.
-- `feat/repo-programs` and `feat/programs-wired`: a deterministic Rhai repo-program engine pinned by hash in the identity document, with four demo templates (branch protection, CI-attested, bounty, sealed patch) and, on the second branch, enforcement of the pinned program on fetch.
-  The programs compute what is owed; settlement is not part of it.
-- AI agents: `programs/agent-bounty.rhai` lets a delegate grant an agent key bounded authority (scopes, a bounty cap, an expiry) with a signed op, enforced by the pinned program on every client and revoked by another op, with no protocol change.
-  An agent can claim bounties but never counts as a delegate or approver; see `docs/p3/agents.md`.
-- `feat/timelock`: timelock seal and open (`arkiv-git timelock seal`, `arkiv-git timelock open`) using drand quicknet.
-- `feat/private-repos`: private repos with MLS X-Wing groups and sealed entities that store only ciphertext; work in progress.
-- `feat/escrow`: early work on top of the collaborative-object branch.
-- `feat/zk-sealed`: a design note only, no implementation commits.
+- Signed collaborative-object ops (issues, patches, reviews, attestations): `arkiv-git op post`, `op list`, `op attach-proof`; format in [`docs/p3/cob-ops.md`](docs/p3/cob-ops.md).
+- Repo programs: deterministic Rhai pinned by hash in the identity document, enforced on every fetch and push; templates in `programs/`, contract in [`docs/p3/programs.md`](docs/p3/programs.md).
+- Escrow: an accountable agent pays program obligations on-chain, with a public audit; [`docs/p3/escrow.md`](docs/p3/escrow.md).
+- Private repos: MLS groups with X-Wing, sealed entities with blinded attributes, roles and member removal; [`docs/p2/private-repos.md`](docs/p2/private-repos.md).
+- ZK sealed patches: a RISC Zero receipt proves a sealed patch meets a spec, and the repo program decides whether a proof is required; [`docs/p4/zk-sealed-patch.md`](docs/p4/zk-sealed-patch.md).
+- Timelock seal and open with drand quicknet; [`docs/p3/timelock.md`](docs/p3/timelock.md).
+- AI agents: scoped, revocable agent grants ([`docs/p3/agents.md`](docs/p3/agents.md)) and an MCP server for Claude, Codex or any MCP client ([`docs/p3/mcp.md`](docs/p3/mcp.md)).
+- Arkiv-native CI: a runner posts signed CI attestations and `programs/ci-gated.rhai` gates `main` on them; [`docs/p3/arkiv-ci.md`](docs/p3/arkiv-ci.md).
 
 ## How to try it
 
