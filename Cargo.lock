@@ -1254,6 +1254,7 @@ dependencies = [
  "arkiv-git-zk-core",
  "clap",
  "hex",
+ "reqwest",
  "serde",
  "serde_json",
  "tempfile",

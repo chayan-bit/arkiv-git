@@ -26,6 +26,7 @@ pub mod helper;
 pub mod member;
 pub mod op;
 pub mod program;
+pub mod release;
 pub mod timelock;
 pub mod units;
 pub mod zk;

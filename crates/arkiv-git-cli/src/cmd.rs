@@ -49,6 +49,9 @@ pub enum Cmd {
     /// Collaborative-object ops: post one, list verified ones.
     #[command(subcommand)]
     Op(crate::op::OpCmd),
+    /// Signed release records: publish one, verify one against the pinned program.
+    #[command(subcommand)]
+    Release(crate::release::ReleaseCmd),
     /// Timelock encryption on drand quicknet: seal now, anyone opens at time T.
     #[command(subcommand)]
     Timelock(crate::timelock::TimelockCmd),
@@ -471,6 +474,10 @@ pub fn run(cli: &Cli) -> Result<()> {
             }
             Cmd::Fund(f) => fund_cmd(&a, &cfg, f).await,
             Cmd::Op(o) => for_repo!(&a, &cfg, &o.rid()?, |b| crate::op::run(b, &cfg, o).await),
+            Cmd::Release(r) => {
+                for_repo!(&a, &cfg, &r.rid()?, |b| crate::release::run(b, &cfg, r)
+                    .await)
+            }
             // A private repo's escrow ops and obligations are sealed like its other ops.
             Cmd::Escrow(e) => match e.repo() {
                 Some(r) => for_repo!(&a, &cfg, &rid_of(r)?, |b| {
