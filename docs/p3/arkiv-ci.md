@@ -55,7 +55,9 @@ scripts/arkiv-ci.sh --repo arkiv::zBZ3MRTENmgPBebpq97ZPTbxeFZNaS8VX6Es25hpdJsSJ 
 scripts/arkiv-ci.sh --repo arkiv::zBZ3MRTENmgPBebpq97ZPTbxeFZNaS8VX6Es25hpdJsSJ --once   # one pass
 ```
 
-Each round lists the ops, finds every patch head without an attestation from this runner, fetches the author's branches from `<url>/<author nid>`, checks the head out in a clean detached worktree and runs the suite there.
+Each round lists the ops and fetches the canonical `main`.
+It skips patch heads already in `main` (for example patches merged before the gate was pinned) and heads this runner already attested.
+For every other patch head it fetches the author's branches from `<url>/<author nid>`, checks the head out in a clean detached worktree and runs the suite there.
 The default suite is the cargo part of `.github/workflows/ci.yml`: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings` and `cargo test --workspace --all-features`, wrapped in `mac-heavy` when it is on `PATH`.
 `ARKIV_CI_CMD` replaces the suite (run with `sh -c`), `ARKIV_CI_SUITE` names it in the payload (default: the command), `ARKIV_CI_DIR` moves the cache (default `~/.cache/arkiv-ci`), and `ARKIV_CI_INTERVAL` sets the seconds between rounds (default 60).
 Logs stay in the cache under `logs/<head>.log`; the payload carries their SHA-256.

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# CI runner on Arkiv (docs/p3/arkiv-ci.md). Tests every patch head that has no attestation
-# from this runner yet, in a clean detached worktree, and posts a signed xyz.arkiv.attest
-# `ci` op {head, status, suite, log_sha256, duration_s}. An interrupted or signal-killed
-# run posts nothing, so a pass is only ever posted for a suite that exited 0.
+# CI runner on Arkiv (docs/p3/arkiv-ci.md). Tests every patch head that is not in main and
+# has no attestation from this runner yet, in a clean detached worktree, and posts a signed
+# xyz.arkiv.attest `ci` op {head, status, suite, log_sha256, duration_s}.
+# An interrupted or signal-killed run posts nothing, so a pass is only ever posted for a suite that exited 0.
 # Usage: scripts/arkiv-ci.sh --repo <arkiv-url> [--once]
 # Env: ARKIV_GIT_HOME  runner identity (signs the attestations, pays the gas)
 #      ARKIV_CI_CMD    suite, run with sh -c (default: the cargo steps of .github/workflows/ci.yml)
@@ -44,7 +44,7 @@ sha256() { if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum 
 
 me=$(my_nid)
 [ -n "$me" ] || die "no identity in ARKIV_GIT_HOME; run arkiv-git keys init"
-attest_obj=""
+attest_obj="" main=""
 
 # This runner's xyz.arkiv.attest object, created on first use.
 attest_object() {
@@ -62,8 +62,13 @@ attest_object() {
 # checkout can never be reported as a pass (or a fail).
 run_one() {
   local author=$2 head=$3 log rc start status payload
-  echo "arkiv-ci: patch $1 head $head"
+  # Merged heads arrive with main, so they are skipped without fetching their branch.
+  if [ -n "$main" ] && git -C "$repo" merge-base --is-ancestor "$head" "$main" 2>/dev/null; then
+    echo "arkiv-ci: skip $head, already in main"
+    return 0
+  fi
   (cd "$repo" && fetch_head "$url" "$author" "$head") || { echo "arkiv-ci: cannot fetch $head" >&2; return 1; }
+  echo "arkiv-ci: patch $1 head $head"
   wt=$(mktemp -d "$dir/wt.XXXXXX") || return 1
   git -C "$repo" worktree add -q --detach --force "$wt" "$head" || return 1
   [ "$(git -C "$wt" rev-parse HEAD)" = "$head" ] || return 1
@@ -92,6 +97,7 @@ run_one() {
 round() {
   local done_heads p author head failed=0
   ops=$(ops_json "$url") || return 1
+  main=$(cd "$repo" && git fetch -q "$url" main && git rev-parse FETCH_HEAD) || main=""
   done_heads=$(jq -r --arg me "$me" '.[] | select(.type == "xyz.arkiv.attest"
     and .action == "ci" and .author == $me) | .payload.head' <<<"$ops") || return 1
   while read -r -u 3 p author head; do

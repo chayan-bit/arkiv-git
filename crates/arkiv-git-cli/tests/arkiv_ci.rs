@@ -121,6 +121,13 @@ fn main_moves_only_with_an_approval_and_a_runner_ci_pass() {
     let (url, work, _) = repo_with_main(&alice, root, "selfhost");
     let pin = |file: &str| alice.arkiv(&["program", "pin", "--repo", &url, "--file", file]);
     pin(&program("branch-protection")); // the live repo's program today
+    // Under branch-protection the delegate merges its own patch with no CI (need 0).
+    alice.git(&work, &["checkout", "-q", "-b", "feat/ci"]);
+    let c0 = commit(&alice, &work, "ci scripts\n");
+    let p0 = patch(&alice, &work, &url, "feat/ci");
+    let merged = ok(merge(&alice, &work, &url, &p0));
+    assert!(merged.contains(&format!("main -> {c0}")), "{merged}");
+    alice.git(&work, &["checkout", "-q", "main"]);
     let ci = user(root, "ci", &log);
     let ci_hex = hex_id(&nid(&ci));
     pin(&gated_for(&ci_hex, root).to_string_lossy()); // a plain re-pin replaces it
@@ -153,9 +160,13 @@ fn main_moves_only_with_an_approval_and_a_runner_ci_pass() {
 
     let ran = run_ci(&ci, &url, "true");
     assert!(ran.contains(&format!("arkiv-ci: pass {c1}")), "{ran}");
+    assert!(
+        ran.contains(&format!("arkiv-ci: skip {c0}, already in main")),
+        "{ran}"
+    );
     let again = run_ci(&ci, &url, "false");
     assert!(
-        !again.contains("arkiv-ci:"),
+        !again.contains("arkiv-ci: patch"),
         "attested heads are not re-run: {again}"
     );
     let merged = ok(merge(&alice, &work, &url, &p1));
