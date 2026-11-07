@@ -36,6 +36,7 @@ Other refs follow the default rule (fast-forward of the accepted head).
 The defaults are the arkiv-git CI runner `z76sCb7au55NQrrbUC8YdoGoLSnwqw5vBvFzumNtjCBoi` as the only attester and `need() = 1`.
 Programs take hex nids; `arkiv_git_sync::ids::parse_id` converts the `z` form.
 The state JSON (`program status`) carries `ci: {head: {attester: status}}`, `patches`, `need` and `quorum`, which is what `arkiv-merge.sh` reads.
+It also carries `main` (accepted main heads) and `releases`, the signed release records (docs/p3/releases.md).
 
 ## Trust model
 
