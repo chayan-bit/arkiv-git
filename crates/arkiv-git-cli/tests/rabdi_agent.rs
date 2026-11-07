@@ -6,7 +6,7 @@
 //!
 //! - `bank_fund`: one transfer of `ARKIV_GIT_AGENT_FUND_WEI` (at most 0.08 tGLM) from the
 //!   throwaway key to `<root>/bank`'s wallet; run it under the shared funding lock.
-//! - `bank_pay`: bank to `ARKIV_GIT_AGENT_PAY=<0xaddr>:<wei>[,...]`, at most 0.02 each.
+//! - `bank_pay`: bank to `ARKIV_GIT_AGENT_PAY=<0xaddr>:<wei>[,...]`, at most 0.04 each.
 //! - `bank_collect`: every peer home under the root (and its escrow identity) back to the
 //!   bank. The escrow payout key keeps its gas float, so the keyless audit stays clean.
 //! - `bank_return`: the bank's balance back to the throwaway key.
@@ -21,7 +21,7 @@ use arkiv_git_sync::Keys;
 use common::live::*;
 
 const MAX_FUND_WEI: u128 = 80_000_000_000_000_000; // 0.08 tGLM
-const MAX_PAY_WEI: u128 = 20_000_000_000_000_000; // 0.02 tGLM
+const MAX_PAY_WEI: u128 = 40_000_000_000_000_000; // 0.04 tGLM
 
 fn root() -> PathBuf {
     PathBuf::from(std::env::var("ARKIV_GIT_AGENT_ROOT").expect("set ARKIV_GIT_AGENT_ROOT"))
@@ -66,7 +66,7 @@ fn bank_pay() {
     for item in plan.split(',') {
         let (addr, amount) = item.split_once(':').expect("<0xaddr>:<wei>");
         let (to, amount): (Address, u128) = (addr.parse().expect("address"), wei(amount));
-        assert!(amount <= MAX_PAY_WEI, "at most 0.02 tGLM per demo address");
+        assert!(amount <= MAX_PAY_WEI, "at most 0.04 tGLM per demo address");
         transfer(&rpc, &bank, to, U256::from(amount));
         eprintln!("paid {to} {}", fmt_glm(U256::from(amount)));
     }

@@ -23,8 +23,8 @@ type ToolResult = Result<String, String>;
 
 const INSTRUCTIONS: &str = "Git repositories on Arkiv. A repo is named by its url \
 `arkiv::<rid>` (or the bare rid). Find work with op_list (issues with a `bounty` that no \
-patch names yet), clone with repo_clone, commit and `git push <url> HEAD:refs/heads/<branch>` \
-from the clone, then attach_proof to post the patch with its receipt. program_status shows \
+patch names yet), clone with repo_clone, edit files in the clone, commit and push them with \
+git_push, then attach_proof to post the patch with its receipt. program_status shows \
 what the repo's pinned program decided; escrow_status audits payouts. Errors carry the \
 stable arkiv-git code (E_*).";
 
@@ -95,6 +95,18 @@ pub struct AttachArgs {
     pub public: PathBuf,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct PushArgs {
+    /// Repo url `arkiv::<rid>` or bare rid.
+    pub repo: String,
+    /// The local clone (from repo_clone).
+    pub dir: PathBuf,
+    /// Branch to push `HEAD` to, e.g. `agent/1a2b3c4d`; it lands in this identity's namespace.
+    pub branch: String,
+    /// If set, first commit every change in `dir` with this message.
+    pub message: Option<String>,
+}
+
 /// The arkiv-git MCP server.
 #[derive(Debug, Clone)]
 pub struct ArkivGit {
@@ -159,6 +171,26 @@ impl ArkivGit {
         let args = ["clone", "-q", &url(&a.repo), &a.dir.to_string_lossy()].map(String::from);
         self.runner.git(&cwd, &args).await.map_err(err)?;
         Ok(serde_json::json!({ "dir": a.dir }).to_string())
+    }
+
+    #[tool(
+        description = "Optionally commit all changes in a clone, then git push HEAD to \
+        refs/heads/<branch> of the repo under this identity; returns {head} (the full commit sha)."
+    )]
+    pub async fn git_push(&self, Parameters(a): Parameters<PushArgs>) -> ToolResult {
+        let git = |args: &[&str]| {
+            let args: Vec<String> = args.iter().map(|s| (*s).to_owned()).collect();
+            let dir = a.dir.clone();
+            async move { self.runner.git(&dir, &args).await.map_err(err) }
+        };
+        if let Some(m) = &a.message {
+            git(&["add", "-A"]).await?;
+            git(&["commit", "-q", "-m", m]).await?;
+        }
+        let refspec = format!("HEAD:refs/heads/{}", a.branch);
+        git(&["push", "-q", &url(&a.repo), &refspec]).await?;
+        let head = git(&["rev-parse", "HEAD"]).await?;
+        Ok(serde_json::json!({ "head": head.trim() }).to_string())
     }
 
     #[tool(
