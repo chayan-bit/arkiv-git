@@ -3,17 +3,18 @@
 # has no attestation from this runner yet, in a clean detached worktree, and posts a signed
 # xyz.arkiv.attest `ci` op {head, status, suite, log_sha256, duration_s}.
 # An interrupted or signal-killed run posts nothing, so a pass is only ever posted for a suite that exited 0.
-# Usage: scripts/arkiv-ci.sh --repo <arkiv-url> [--once]
-# Env: ARKIV_GIT_HOME  runner identity (signs the attestations, pays the gas)
-#      ARKIV_CI_CMD    suite, run with sh -c (default: the cargo steps of .github/workflows/ci.yml)
-#      ARKIV_CI_SUITE  suite name in the payload (default: the command)
-#      ARKIV_CI_DIR    cache: git repo, logs, cargo target (default: ~/.cache/arkiv-ci)
-#      ARKIV_CI_INTERVAL  seconds between rounds without --once (default: 60)
+# Usage: scripts/chart-ci.sh --repo <arkiv-url> [--once]
+# Env: CHARTER_HOME  runner identity (signs the attestations, pays the gas)
+#      CHARTER_CI_CMD    suite, run with sh -c (default: the cargo steps of .github/workflows/ci.yml)
+#      CHARTER_CI_SUITE  suite name in the payload (default: the command)
+#      CHARTER_CI_DIR    cache: git repo, logs, cargo target (default: ~/.cache/charter-ci,
+#                        or ~/.cache/arkiv-ci if only that pre-rename cache exists)
+#      CHARTER_CI_INTERVAL  seconds between rounds without --once (default: 60)
 set -euo pipefail
-# shellcheck source=scripts/arkiv-lib.sh
-. "$(dirname "$0")/arkiv-lib.sh"
+# shellcheck source=scripts/chart-lib.sh
+. "$(dirname "$0")/chart-lib.sh"
 
-usage() { die "usage: arkiv-ci.sh --repo <arkiv-url> [--once]"; }
+usage() { die "usage: chart-ci.sh --repo <arkiv-url> [--once]"; }
 url="" once=""
 while [ $# -gt 0 ]; do
   case $1 in
@@ -26,9 +27,12 @@ done
 
 steps='cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo test --workspace --all-features'
 if command -v mac-heavy >/dev/null; then steps="mac-heavy sh -c '$steps'"; fi
-cmd=${ARKIV_CI_CMD:-$steps}
-suite=${ARKIV_CI_SUITE:-$cmd}
-dir=${ARKIV_CI_DIR:-$HOME/.cache/arkiv-ci}/$(printf %s "$url" | tr -c 'A-Za-z0-9' _)
+# Pre-rename ARKIV_CI_* names still work; the CHARTER_CI_* name wins.
+cmd=${CHARTER_CI_CMD:-${ARKIV_CI_CMD:-$steps}}
+suite=${CHARTER_CI_SUITE:-${ARKIV_CI_SUITE:-$cmd}}
+cache=$HOME/.cache/charter-ci
+[ ! -d "$cache" ] && [ -d "$HOME/.cache/arkiv-ci" ] && cache=$HOME/.cache/arkiv-ci
+dir=${CHARTER_CI_DIR:-${ARKIV_CI_DIR:-$cache}}/$(printf %s "$url" | tr -c 'A-Za-z0-9' _)
 repo=$dir/repo
 export CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-$dir/target}
 mkdir -p "$dir/logs"
@@ -38,10 +42,10 @@ git -C "$repo" worktree prune
 wt=""
 cleanup() { if [ -n "$wt" ]; then git -C "$repo" worktree remove --force "$wt" || true; fi; }
 trap cleanup EXIT
-trap 'echo "arkiv-ci: interrupted, no attestation posted" >&2; exit 130' INT TERM HUP
+trap 'echo "chart-ci: interrupted, no attestation posted" >&2; exit 130' INT TERM HUP
 
 me=$(my_nid)
-[ -n "$me" ] || die "no identity in ARKIV_GIT_HOME; run arkiv-git keys init"
+[ -n "$me" ] || die "no identity in CHARTER_HOME; run chart keys init"
 attest_obj="" main=""
 
 # run_one <patch> <author> <head>: every step before the suite must succeed, so a broken
@@ -50,11 +54,11 @@ run_one() {
   local author=$2 head=$3 log rc start status payload
   # Merged heads arrive with main, so they are skipped without fetching their branch.
   if [ -n "$main" ] && git -C "$repo" merge-base --is-ancestor "$head" "$main" 2>/dev/null; then
-    echo "arkiv-ci: skip $head, already in main"
+    echo "chart-ci: skip $head, already in main"
     return 0
   fi
-  (cd "$repo" && fetch_head "$url" "$author" "$head") || { echo "arkiv-ci: cannot fetch $head" >&2; return 1; }
-  echo "arkiv-ci: patch $1 head $head"
+  (cd "$repo" && fetch_head "$url" "$author" "$head") || { echo "chart-ci: cannot fetch $head" >&2; return 1; }
+  echo "chart-ci: patch $1 head $head"
   wt=$(mktemp -d "$dir/wt.XXXXXX") || return 1
   git -C "$repo" worktree add -q --detach --force "$wt" "$head" || return 1
   [ "$(git -C "$wt" rev-parse HEAD)" = "$head" ] || return 1
@@ -65,7 +69,7 @@ run_one() {
   cleanup
   wt=""
   if [ "$rc" -gt 128 ]; then
-    echo "arkiv-ci: suite killed by signal $((rc - 128)), no attestation" >&2
+    echo "chart-ci: suite killed by signal $((rc - 128)), no attestation" >&2
     return 1
   fi
   status=pass
@@ -74,9 +78,9 @@ run_one() {
     --arg l "$(sha256 "$log")" --argjson d "$(($(date +%s) - start))" \
     '{head: $h, status: $s, suite: $suite, log_sha256: $l, duration_s: $d}')
   attest_object || return 1
-  arkiv-git op post --repo "$url" --type xyz.arkiv.attest --action ci --object "$attest_obj" \
+  chart op post --repo "$url" --type xyz.arkiv.attest --action ci --object "$attest_obj" \
     --parent "$attest_obj" --payload-json "$payload" >/dev/null || return 1
-  echo "arkiv-ci: $status $head (log $log)"
+  echo "chart-ci: $status $head (log $log)"
 }
 
 # One pass over the open patch heads; returns 1 if any head could not be attested.
@@ -98,6 +102,6 @@ if [ -n "$once" ]; then
   exit
 fi
 while :; do
-  round || echo "arkiv-ci: round incomplete, retrying next round" >&2
-  sleep "${ARKIV_CI_INTERVAL:-60}"
+  round || echo "chart-ci: round incomplete, retrying next round" >&2
+  sleep "${CHARTER_CI_INTERVAL:-${ARKIV_CI_INTERVAL:-60}}"
 done

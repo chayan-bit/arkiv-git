@@ -4,14 +4,14 @@
 # signed xyz.arkiv.attest `artifact` op {tag, commit, name, sha256} only when the sha256 and
 # size match the release record. Artifacts this key already attested are skipped.
 # It attests bytes, not a rebuild: reproducible rebuilds are the stronger future mode.
-# Usage: scripts/arkiv-release-attest.sh --repo <arkiv-url> --tag <tag>
-# Env: ARKIV_GIT_HOME  attester identity (listed in the program's attesters(), funded)
+# Usage: scripts/chart-release-attest.sh --repo <arkiv-url> --tag <tag>
+# Env: CHARTER_HOME  attester identity (listed in the program's attesters(), funded)
 set -euo pipefail
-# shellcheck source=scripts/arkiv-lib.sh
-. "$(dirname "$0")/arkiv-lib.sh"
+# shellcheck source=scripts/chart-lib.sh
+. "$(dirname "$0")/chart-lib.sh"
 command -v curl >/dev/null || die "curl not found on PATH"
 
-usage() { die "usage: arkiv-release-attest.sh --repo <arkiv-url> --tag <tag>"; }
+usage() { die "usage: chart-release-attest.sh --repo <arkiv-url> --tag <tag>"; }
 url="" tag=""
 while [ $# -gt 0 ]; do
   case $1 in
@@ -23,8 +23,8 @@ done
 [ -n "$url" ] && [ -n "$tag" ] || usage
 
 me=$(my_nid)
-[ -n "$me" ] || die "no identity in ARKIV_GIT_HOME; run arkiv-git keys init"
-state=$(arkiv-git program status --repo "$url" | sed -n 's/^state: //p')
+[ -n "$me" ] || die "no identity in CHARTER_HOME; run chart keys init"
+state=$(chart program status --repo "$url" | sed -n 's/^state: //p')
 rel=$(jq -c --arg t "$tag" '.releases[$t] // empty' <<<"$state")
 [ -n "$rel" ] || die "no release $tag in the program state"
 commit=$(jq -r .commit <<<"$rel")
@@ -41,7 +41,7 @@ attest_one() {
   if jq -e --arg me "$me" --arg t "$tag" --arg c "$commit" --arg n "$name" --arg s "$sha" \
     'any(.[]; .type == "xyz.arkiv.attest" and .action == "artifact" and .author == $me
       and .payload == {tag: $t, commit: $c, name: $n, sha256: $s})' <<<"$ops" >/dev/null; then
-    echo "arkiv-release-attest: already attested $name"
+    echo "chart-release-attest: already attested $name"
     return 0
   fi
   while read -r loc; do
@@ -49,18 +49,18 @@ attest_one() {
     curl -fsSL --proto '=http,https,file' -o "$tmp/artifact" "$loc" || continue
     got=$(sha256 "$tmp/artifact")
     if [ "$got" != "$sha" ] || [ "$(wc -c <"$tmp/artifact" | tr -d ' ')" != "$size" ]; then
-      echo "arkiv-release-attest: MISMATCH $name at $loc (sha256 $got), not attesting" >&2
+      echo "chart-release-attest: MISMATCH $name at $loc (sha256 $got), not attesting" >&2
       return 1
     fi
     payload=$(jq -cn --arg t "$tag" --arg c "$commit" --arg n "$name" --arg s "$sha" \
       '{tag: $t, commit: $c, name: $n, sha256: $s}')
     attest_object || return 1
-    arkiv-git op post --repo "$url" --type xyz.arkiv.attest --action artifact \
+    chart op post --repo "$url" --type xyz.arkiv.attest --action artifact \
       --object "$attest_obj" --parent "$attest_obj" --payload-json "$payload" >/dev/null || return 1
-    echo "arkiv-release-attest: attested $name $sha from $loc"
+    echo "chart-release-attest: attested $name $sha from $loc"
     return 0
   done < <(jq -r '.locations[]' <<<"$1")
-  echo "arkiv-release-attest: no location of $name could be downloaded" >&2
+  echo "chart-release-attest: no location of $name could be downloaded" >&2
   return 1
 }
 

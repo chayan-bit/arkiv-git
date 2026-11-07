@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Off-camera setup and teardown for demo/arkiv-git.tape, which runs every scene on the live Rabdi testnet.
+# Off-camera setup and teardown for demo/charter.tape, which runs every scene on the live Rabdi testnet.
 #
-#   ARKIV_GIT_LIVE_VIDEO=<scratch dir> ARKIV_GIT_FUND_LOCK=<lock file> demo/live-setup.sh fund
-#   nix-shell -p vhs --run 'vhs demo/arkiv-git.tape'
-#   ARKIV_GIT_LIVE_VIDEO=<scratch dir> demo/live-setup.sh sweep
+#   CHARTER_LIVE_VIDEO=<scratch dir> CHARTER_FUND_LOCK=<lock file> demo/live-setup.sh fund
+#   nix-shell -p vhs --run 'vhs demo/charter.tape'
+#   CHARTER_LIVE_VIDEO=<scratch dir> demo/live-setup.sh sweep
 #
 # `fund` creates the peer homes (alice, bob, dave with keys; carol keyless), links the stage to /tmp/agl,
 # writes the access key to <dir>/access.sh (mode 600) for the tape's hidden step, moves one bank transfer
@@ -14,28 +14,28 @@ set -euo pipefail
 
 cmd=${1:?usage: live-setup.sh fund|sweep}
 REPO=$(cd "$(dirname "$0")/.." && pwd)
-ROOT=${ARKIV_GIT_LIVE_VIDEO:?set ARKIV_GIT_LIVE_VIDEO to a scratch dir}
+ROOT=${CHARTER_LIVE_VIDEO:?set CHARTER_LIVE_VIDEO to a scratch dir}
 STAGE=$ROOT/stage
 HOMES=$STAGE/.h
 MILLI=000000000000000
 BIN=${CARGO_TARGET_DIR:-$REPO/target}/release
-export ARKIV_GIT_RABDI=1 ARKIV_GIT_LIVE_BANK=$ROOT/bank
+export CHARTER_RABDI=1 CHARTER_LIVE_BANK=$ROOT/bank
 
 live_test() { # <test file> <test name> [env...]
   local file=$1 name=$2
   shift 2
-  (cd "$REPO" && env "$@" cargo test -q -p arkiv-git-cli --test "$file" "$name" -- --ignored --exact --nocapture)
+  (cd "$REPO" && env "$@" cargo test -q -p charter-cli --test "$file" "$name" -- --ignored --exact --nocapture)
 }
 
 keys() { # <home>
-  local h=$1/.arkiv-git
-  ARKIV_GIT_HOME=$h "$BIN/arkiv-git" keys show 2>/dev/null ||
-    ARKIV_GIT_HOME=$h "$BIN/arkiv-git" keys init
+  local h=$1/.charter
+  CHARTER_HOME=$h "$BIN/chart" keys show 2>/dev/null ||
+    CHARTER_HOME=$h "$BIN/chart" keys init
 }
 
 case $cmd in
 fund)
-  LOCK=${ARKIV_GIT_FUND_LOCK:?set ARKIV_GIT_FUND_LOCK}
+  LOCK=${CHARTER_FUND_LOCK:?set CHARTER_FUND_LOCK}
   mkdir -p "$ROOT/bank" "$HOMES"/{alice,bob,carol,dave}
   ln -sfn "$STAGE" /tmp/agl
   ln -sfn "$BIN" "$STAGE/.bin"
@@ -45,12 +45,12 @@ fund)
     echo "$u:"
     keys "$( [ "$u" = bank ] && echo "$ROOT/bank" || echo "$STAGE/$u")"
   done
-  lockf "$LOCK" bash -c "cd '$REPO' && ARKIV_GIT_RABDI=1 ARKIV_GIT_LIVE_BANK='$ROOT/bank' cargo test -q -p arkiv-git-cli --test rabdi_private bank_fund -- --ignored --exact --nocapture"
-  live_test rabdi_private bank_pay ARKIV_GIT_LIVE_PAY_HOME="$HOMES/alice" ARKIV_GIT_LIVE_PAY_WEI="25$MILLI"
-  live_test rabdi_private bank_pay ARKIV_GIT_LIVE_PAY_HOME="$HOMES/bob" ARKIV_GIT_LIVE_PAY_WEI="15$MILLI"
+  lockf "$LOCK" bash -c "cd '$REPO' && CHARTER_RABDI=1 CHARTER_LIVE_BANK='$ROOT/bank' cargo test -q -p charter-cli --test rabdi_private bank_fund -- --ignored --exact --nocapture"
+  live_test rabdi_private bank_pay CHARTER_LIVE_PAY_HOME="$HOMES/alice" CHARTER_LIVE_PAY_WEI="25$MILLI"
+  live_test rabdi_private bank_pay CHARTER_LIVE_PAY_HOME="$HOMES/bob" CHARTER_LIVE_PAY_WEI="15$MILLI"
   ;;
 sweep)
-  live_test rabdi_private bank_collect ARKIV_GIT_LIVE_COLLECT="$HOMES"
+  live_test rabdi_private bank_collect CHARTER_LIVE_COLLECT="$HOMES"
   live_test rabdi_private bank_sweep
   ;;
 *)

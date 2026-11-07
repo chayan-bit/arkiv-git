@@ -1,18 +1,18 @@
 # shellcheck shell=bash
-# Shared helpers for the arkiv-*.sh scripts (docs/p3/arkiv-ci.md). Needs arkiv-git, git, jq.
+# Shared helpers for the chart-*.sh scripts (docs/p3/arkiv-ci.md). Needs chart, git, jq.
 
 die() {
   echo "$(basename "$0"): $*" >&2
   exit 1
 }
 
-for tool in arkiv-git git jq; do
+for tool in chart git jq; do
   command -v "$tool" >/dev/null || die "$tool not found on PATH"
 done
 
-ops_json() { arkiv-git op list --repo "$1" --json; }
+ops_json() { chart op list --repo "$1" --json; }
 
-my_nid() { arkiv-git keys show | sed -n 's/^nid:[[:space:]]*//p'; }
+my_nid() { chart keys show | sed -n 's/^nid:[[:space:]]*//p'; }
 
 # Reads `op list --json`; prints "patch author head" per patch with the author's latest
 # create/revise head. Ids and oids are validated, since they reach git command lines.
@@ -47,7 +47,8 @@ attest_object() {
       and .action == "create" and .author == $me)) | first | .id // empty' <<<"$ops")
   fi
   if [ -z "$attest_obj" ]; then
-    attest_obj=$(arkiv-git op post --repo "$url" --type xyz.arkiv.attest --action create \
+    # The payload label is on-chain data in existing attest objects, kept unchanged by the Charter rename.
+    attest_obj=$(chart op post --repo "$url" --type xyz.arkiv.attest --action create \
       --payload-json '{"runner":"arkiv-ci"}') || return 1
   fi
 }

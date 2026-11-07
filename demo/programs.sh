@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Branch protection with a pinned repo program, end to end on a local MemArkiv chain.
-# Build first: `nix develop -c cargo build -p arkiv-git-cli`.
+# Build first: `nix develop -c cargo build -p charter-cli`.
 # Usage: demo/programs.sh [workdir]   (default /tmp/arkiv-programs-demo, wiped first)
 set -euo pipefail
 
@@ -9,23 +9,23 @@ DEMO="${1:-/tmp/arkiv-programs-demo}"
 BIN="${BIN:-$ROOT/target/debug}"
 rm -rf "$DEMO" && mkdir -p "$DEMO"
 export PATH="$BIN:$PATH"
-export ARKIV_GIT_BACKEND="mem:$DEMO/chain.log"
+export CHARTER_BACKEND="mem:$DEMO/chain.log"
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 
-# Runs a command as user $1 (own HOME and arkiv-git home).
+# Runs a command as user $1 (own HOME and Charter home).
 as() {
   local who="$1"; shift
   mkdir -p "$DEMO/$who"
-  HOME="$DEMO/$who" ARKIV_GIT_HOME="$DEMO/$who/.arkiv-git" "$@"
+  HOME="$DEMO/$who" CHARTER_HOME="$DEMO/$who/.charter" "$@"
 }
 g() { local who="$1"; shift; as "$who" git -c user.name="$who" -c user.email="$who@example.com" \
   -c init.defaultBranch=main -c commit.gpgsign=false "$@"; }
 
 new_user() {
-  as "$1" arkiv-git keys init >/dev/null
-  echo "$1: $(as "$1" arkiv-git fund --dev 1000 | paste -sd' ' -)"
+  as "$1" chart keys init >/dev/null
+  echo "$1: $(as "$1" chart fund --dev 1000 | paste -sd' ' -)"
 }
 
 say "Alice (delegate) and Bob (contributor) get keys and test funds"
@@ -33,7 +33,7 @@ new_user alice
 new_user bob
 
 say "Alice creates a repo and pushes main before any program is pinned"
-URL="$(as alice arkiv-git init --name guarded | awk '/url:/ {print $2}')"
+URL="$(as alice chart init --name guarded | awk '/url:/ {print $2}')"
 echo "repo: $URL"
 WORK="$DEMO/work"
 g alice init -q "$WORK"
@@ -44,7 +44,7 @@ g alice -C "$WORK" push -q "$URL" main
 echo "main is $(g alice -C "$WORK" rev-parse --short HEAD)"
 
 say "Alice pins programs/branch-protection.rhai (source published as an op, hash pinned in the identity)"
-as alice arkiv-git program pin --repo "$URL" --file "$ROOT/programs/branch-protection.rhai" | grep -E 'published|program:'
+as alice chart program pin --repo "$URL" --file "$ROOT/programs/branch-protection.rhai" | grep -E 'published|program:'
 
 say "Alice commits v1 and pushes straight to main: the helper refuses it locally, no gas spent"
 echo "v1" > "$WORK/README"
@@ -53,12 +53,12 @@ HEAD1="$(g alice -C "$WORK" rev-parse HEAD)"
 g alice -C "$WORK" push "$URL" main 2>&1 | grep -E 'E_PROGRAM_REJECTED' || true
 
 say "Bob opens a patch at v1; Alice reviews and approves that exact head"
-PATCH="$(as bob arkiv-git op post --repo "$URL" --type xyz.arkiv.patch --action create \
+PATCH="$(as bob chart op post --repo "$URL" --type xyz.arkiv.patch --action create \
   --payload-json "{\"title\":\"v1\",\"head\":\"$HEAD1\"}")"
 echo "patch: $PATCH"
-REVIEW="$(as alice arkiv-git op post --repo "$URL" --type xyz.arkiv.review --action create \
+REVIEW="$(as alice chart op post --repo "$URL" --type xyz.arkiv.review --action create \
   --payload-json "{\"patch\":\"$PATCH\"}")"
-as alice arkiv-git op post --repo "$URL" --type xyz.arkiv.review --action approve \
+as alice chart op post --repo "$URL" --type xyz.arkiv.review --action approve \
   --object "$REVIEW" --parent "$REVIEW" --payload-json "{\"patch\":\"$PATCH\",\"head\":\"$HEAD1\"}" >/dev/null
 echo "approved by alice at ${HEAD1:0:7}"
 
@@ -71,4 +71,4 @@ g carol clone -q "$URL" "$DEMO/carol-clone"
 g carol -C "$DEMO/carol-clone" log --oneline -1
 
 say "Program status: state, canonical heads, rejected pushes, obligations"
-as carol arkiv-git program status --repo "$URL"
+as carol chart program status --repo "$URL"
