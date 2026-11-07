@@ -35,3 +35,19 @@ patch_heads() {
 fetch_head() {
   git fetch -q "$1/$2" "+refs/heads/*:refs/arkiv/$2/*" && git cat-file -e "$3^{commit}"
 }
+
+sha256() { if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1; }
+
+# This attester's xyz.arkiv.attest object, created on first use; needs $url, $me, $ops and
+# sets $attest_obj.
+# shellcheck disable=SC2154 # globals of the sourcing script
+attest_object() {
+  if [ -z "$attest_obj" ]; then
+    attest_obj=$(jq -r --arg me "$me" 'map(select(.type == "xyz.arkiv.attest"
+      and .action == "create" and .author == $me)) | first | .id // empty' <<<"$ops")
+  fi
+  if [ -z "$attest_obj" ]; then
+    attest_obj=$(arkiv-git op post --repo "$url" --type xyz.arkiv.attest --action create \
+      --payload-json '{"runner":"arkiv-ci"}') || return 1
+  fi
+}

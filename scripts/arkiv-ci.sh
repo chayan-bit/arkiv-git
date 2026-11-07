@@ -40,23 +40,9 @@ cleanup() { if [ -n "$wt" ]; then git -C "$repo" worktree remove --force "$wt" |
 trap cleanup EXIT
 trap 'echo "arkiv-ci: interrupted, no attestation posted" >&2; exit 130' INT TERM HUP
 
-sha256() { if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1; }
-
 me=$(my_nid)
 [ -n "$me" ] || die "no identity in ARKIV_GIT_HOME; run arkiv-git keys init"
 attest_obj="" main=""
-
-# This runner's xyz.arkiv.attest object, created on first use.
-attest_object() {
-  if [ -z "$attest_obj" ]; then
-    attest_obj=$(jq -r --arg me "$me" 'map(select(.type == "xyz.arkiv.attest"
-      and .action == "create" and .author == $me)) | first | .id // empty' <<<"$ops")
-  fi
-  if [ -z "$attest_obj" ]; then
-    attest_obj=$(arkiv-git op post --repo "$url" --type xyz.arkiv.attest --action create \
-      --payload-json '{"runner":"arkiv-ci"}') || return 1
-  fi
-}
 
 # run_one <patch> <author> <head>: every step before the suite must succeed, so a broken
 # checkout can never be reported as a pass (or a fail).
