@@ -1,5 +1,5 @@
 {
-  description = "arkiv-git dev shell (Rust toolchain from rust-toolchain.toml)";
+  description = "Charter dev shell (Rust toolchain from rust-toolchain.toml)";
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     rust-overlay.url = "github:oxalica/rust-overlay";

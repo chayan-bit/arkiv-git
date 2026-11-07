@@ -311,16 +311,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "arkiv-git-zk"
-version = "0.1.0"
-dependencies = [
- "arkiv-git-zk-core",
- "bincode",
- "risc0-zkvm",
- "thiserror 2.0.21",
-]
-
-[[package]]
 name = "arkiv-git-zk-core"
 version = "0.1.0"
 dependencies = [
@@ -606,6 +596,17 @@ dependencies = [
  "cipher",
  "poly1305",
  "zeroize",
+]
+
+[[package]]
+name = "charter-zk"
+version = "0.1.0"
+dependencies = [
+ "arkiv-git-zk-core",
+ "bincode",
+ "hex",
+ "risc0-zkvm",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -4625,9 +4626,9 @@ dependencies = [
 name = "zk-prover"
 version = "0.1.0"
 dependencies = [
- "arkiv-git-zk",
  "arkiv-git-zk-core",
  "bincode",
+ "charter-zk",
  "getrandom 0.3.4",
  "methods",
  "risc0-zkvm",

@@ -1,0 +1,38 @@
+[package]
+name = "charter-store"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+# In-memory Arkiv for tests (design 7.2). Parses queries with the node's own parser.
+fake = ["dep:arkiv-query", "dep:arkiv-interfaces"]
+
+[dependencies]
+# Arkiv node v1.0.1, pinned by commit (design 7.1); reachable upstream as tag v1.0.1.
+arkiv-bindings = { git = "https://github.com/Arkiv-Network/arkiv", rev = "2a3526dd861bf01c284d232d8ea4f880e24fd526" }
+arkiv-rpc-types = { git = "https://github.com/Arkiv-Network/arkiv", rev = "2a3526dd861bf01c284d232d8ea4f880e24fd526" }
+arkiv-interfaces = { git = "https://github.com/Arkiv-Network/arkiv", rev = "2a3526dd861bf01c284d232d8ea4f880e24fd526", optional = true }
+arkiv-query = { git = "https://github.com/Arkiv-Network/arkiv", rev = "2a3526dd861bf01c284d232d8ea4f880e24fd526", optional = true }
+# alloy lines match the node's lockfile (primitives/sol-types 1.6, the rest 2.5).
+alloy-primitives = { version = "1.6", features = ["serde", "getrandom"] }
+alloy-sol-types = "1.6"
+alloy-consensus = { version = "2.5", features = ["k256"] }
+alloy-eips = "2.5"
+alloy-signer = "2.5"
+alloy-signer-local = "2.5"
+# Plain JSON-RPC over HTTP: alloy's transport drops response headers, and Retry-After must be read.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["time", "sync"] }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "test-util", "net", "io-util"] }

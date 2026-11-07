@@ -1,7 +1,7 @@
-//! Proving the sealed-patch relation (moved out of `arkiv-git-zk` so the root workspace
+//! Proving the sealed-patch relation (moved out of `charter-zk` so the root workspace
 //! never links the RISC Zero prover).
 
-use arkiv_git_zk::IMAGE_ID;
+use charter_zk::IMAGE_ID;
 use arkiv_git_zk_core::Private;
 use risc0_zkvm::{ExecutorEnv, LocalProver, Prover, ProverOpts, compute_image_id};
 

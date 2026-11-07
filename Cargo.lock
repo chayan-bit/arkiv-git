@@ -1238,197 +1238,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "arkiv-git-cli"
-version = "0.1.0"
-dependencies = [
- "alloy-signer-local",
- "arkiv-git-core",
- "arkiv-git-crypto",
- "arkiv-git-escrow",
- "arkiv-git-private",
- "arkiv-git-program",
- "arkiv-git-store",
- "arkiv-git-sync",
- "arkiv-git-timelock",
- "arkiv-git-zk",
- "arkiv-git-zk-core",
- "clap",
- "hex",
- "reqwest",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
-]
-
-[[package]]
-name = "arkiv-git-core"
-version = "0.1.0"
-dependencies = [
- "arkiv-git-crypto",
- "gix-validate",
- "hex",
- "minicbor",
- "proptest",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "arkiv-git-crypto"
-version = "0.1.0"
-dependencies = [
- "ed25519-dalek",
- "getrandom 0.4.3",
- "hex",
- "hkdf 0.13.0",
- "k256 0.13.4",
- "ml-dsa",
- "proptest",
- "serde_json",
- "sha2 0.11.1",
- "sha3 0.10.9",
- "thiserror 2.0.21",
- "zeroize",
-]
-
-[[package]]
-name = "arkiv-git-escrow"
-version = "0.1.0"
-dependencies = [
- "alloy-signer-local",
- "arkiv-git-core",
- "arkiv-git-crypto",
- "arkiv-git-store",
- "arkiv-git-sync",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "arkiv-git-mcp"
-version = "0.1.0"
-dependencies = [
- "rmcp",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "arkiv-git-private"
-version = "0.1.0"
-dependencies = [
- "alloy-signer-local",
- "arkiv-bindings",
- "arkiv-git-core",
- "arkiv-git-crypto",
- "arkiv-git-store",
- "arkiv-git-sync",
- "arkiv-rpc-types",
- "chacha20poly1305 0.11.0",
- "getrandom 0.4.3",
- "hex",
- "hmac 0.13.0",
- "openmls",
- "openmls_basic_credential",
- "openmls_libcrux_crypto",
- "openmls_traits",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
-]
-
-[[package]]
-name = "arkiv-git-program"
-version = "0.1.0"
-dependencies = [
- "arkiv-git-crypto",
- "hex",
- "minicbor",
- "rhai",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "arkiv-git-store"
-version = "0.1.0"
-dependencies = [
- "alloy-consensus",
- "alloy-eips",
- "alloy-primitives",
- "alloy-signer",
- "alloy-signer-local",
- "alloy-sol-types",
- "arkiv-bindings",
- "arkiv-interfaces",
- "arkiv-query",
- "arkiv-rpc-types",
- "reqwest",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
-]
-
-[[package]]
-name = "arkiv-git-sync"
-version = "0.1.0"
-dependencies = [
- "alloy-signer-local",
- "arkiv-git-core",
- "arkiv-git-crypto",
- "arkiv-git-program",
- "arkiv-git-store",
- "arkiv-git-zk",
- "bs58",
- "futures-util",
- "hex",
- "minicbor",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
-]
-
-[[package]]
-name = "arkiv-git-timelock"
-version = "0.1.0"
-dependencies = [
- "drand_core",
- "hex",
- "minicbor",
- "serde_json",
- "sha2 0.11.1",
- "thiserror 2.0.21",
- "time",
- "tlock_age",
-]
-
-[[package]]
-name = "arkiv-git-zk"
-version = "0.1.0"
-dependencies = [
- "arkiv-git-zk-core",
- "bincode",
- "hex",
- "risc0-zkvm",
- "serde_json",
- "thiserror 2.0.21",
-]
-
-[[package]]
 name = "arkiv-git-zk-core"
 version = "0.1.0"
 dependencies = [
@@ -1928,6 +1737,197 @@ dependencies = [
  "chacha20 0.10.2",
  "cipher 0.5.2",
  "poly1305 0.9.1",
+]
+
+[[package]]
+name = "charter-cli"
+version = "0.1.0"
+dependencies = [
+ "alloy-signer-local",
+ "arkiv-git-zk-core",
+ "charter-core",
+ "charter-crypto",
+ "charter-escrow",
+ "charter-private",
+ "charter-program",
+ "charter-store",
+ "charter-sync",
+ "charter-timelock",
+ "charter-zk",
+ "clap",
+ "hex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
+name = "charter-core"
+version = "0.1.0"
+dependencies = [
+ "charter-crypto",
+ "gix-validate",
+ "hex",
+ "minicbor",
+ "proptest",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "charter-crypto"
+version = "0.1.0"
+dependencies = [
+ "ed25519-dalek",
+ "getrandom 0.4.3",
+ "hex",
+ "hkdf 0.13.0",
+ "k256 0.13.4",
+ "ml-dsa",
+ "proptest",
+ "serde_json",
+ "sha2 0.11.1",
+ "sha3 0.10.9",
+ "thiserror 2.0.21",
+ "zeroize",
+]
+
+[[package]]
+name = "charter-escrow"
+version = "0.1.0"
+dependencies = [
+ "alloy-signer-local",
+ "charter-core",
+ "charter-crypto",
+ "charter-store",
+ "charter-sync",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "charter-mcp"
+version = "0.1.0"
+dependencies = [
+ "rmcp",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "charter-private"
+version = "0.1.0"
+dependencies = [
+ "alloy-signer-local",
+ "arkiv-bindings",
+ "arkiv-rpc-types",
+ "chacha20poly1305 0.11.0",
+ "charter-core",
+ "charter-crypto",
+ "charter-store",
+ "charter-sync",
+ "getrandom 0.4.3",
+ "hex",
+ "hmac 0.13.0",
+ "openmls",
+ "openmls_basic_credential",
+ "openmls_libcrux_crypto",
+ "openmls_traits",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
+name = "charter-program"
+version = "0.1.0"
+dependencies = [
+ "charter-crypto",
+ "hex",
+ "minicbor",
+ "rhai",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "charter-store"
+version = "0.1.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-eips",
+ "alloy-primitives",
+ "alloy-signer",
+ "alloy-signer-local",
+ "alloy-sol-types",
+ "arkiv-bindings",
+ "arkiv-interfaces",
+ "arkiv-query",
+ "arkiv-rpc-types",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
+name = "charter-sync"
+version = "0.1.0"
+dependencies = [
+ "alloy-signer-local",
+ "bs58",
+ "charter-core",
+ "charter-crypto",
+ "charter-program",
+ "charter-store",
+ "charter-zk",
+ "futures-util",
+ "hex",
+ "minicbor",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
+name = "charter-timelock"
+version = "0.1.0"
+dependencies = [
+ "drand_core",
+ "hex",
+ "minicbor",
+ "serde_json",
+ "sha2 0.11.1",
+ "thiserror 2.0.21",
+ "time",
+ "tlock_age",
+]
+
+[[package]]
+name = "charter-zk"
+version = "0.1.0"
+dependencies = [
+ "arkiv-git-zk-core",
+ "bincode",
+ "hex",
+ "risc0-zkvm",
+ "serde_json",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

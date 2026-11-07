@@ -46,7 +46,7 @@ fn run() -> Result<(), String> {
     let (receipt, cycles) = prove::prove(methods::SEALED_PATCH_ELF, &private, &spec)?;
     let prove_s = start.elapsed().as_secs_f64();
     let start = Instant::now();
-    arkiv_git_zk::verify(&receipt, &public).map_err(|e| e.to_string())?;
+    charter_zk::verify(&receipt, &public).map_err(|e| e.to_string())?;
     let verify_ms = start.elapsed().as_secs_f64() * 1e3;
 
     let out = Path::new(out);

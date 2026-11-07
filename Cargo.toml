@@ -1,18 +1,18 @@
 [workspace]
 resolver = "3"
 members = [
-  "crates/arkiv-git-crypto",
-  "crates/arkiv-git-timelock",
-  "crates/arkiv-git-core",
-  "crates/arkiv-git-store",
-  "crates/arkiv-git-sync",
-  "crates/arkiv-git-escrow",
-  "crates/arkiv-git-cli",
-  "crates/arkiv-git-mcp",
-  "crates/arkiv-git-program",
-  "crates/arkiv-git-private",
+  "crates/charter-crypto",
+  "crates/charter-timelock",
+  "crates/charter-core",
+  "crates/charter-store",
+  "crates/charter-sync",
+  "crates/charter-escrow",
+  "crates/charter-cli",
+  "crates/charter-mcp",
+  "crates/charter-program",
+  "crates/charter-private",
   "crates/arkiv-git-zk-core",
-  "crates/arkiv-git-zk",
+  "crates/charter-zk",
 ]
 exclude = ["zk"]
 
@@ -21,7 +21,7 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.97"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/chayan-bit/arkiv-git"
+repository = "https://github.com/chayan-bit/charter"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

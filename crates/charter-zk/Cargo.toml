@@ -1,0 +1,22 @@
+[package]
+name = "charter-zk"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Verify RISC Zero receipts for sealed patches (proving lives in zk/prover)"
+
+[lints]
+workspace = true
+
+[dependencies]
+arkiv-git-zk-core = { path = "../arkiv-git-zk-core" }
+bincode = "1.3"
+hex = "0.4"
+# disable-dev-mode: fake (dev-mode) receipts never verify, whatever RISC0_DEV_MODE says.
+risc0-zkvm = { version = "=3.0.6", default-features = false, features = ["std", "disable-dev-mode"] }
+thiserror = "2"
+
+[dev-dependencies]
+serde_json = "1"
