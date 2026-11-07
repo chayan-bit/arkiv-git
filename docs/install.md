@@ -8,7 +8,7 @@ Two targets are published: `aarch64-apple-darwin` (Apple Silicon macOS) and `x86
 
 ```
 https://github.com/chayan-bit/arkiv-git/releases/download/<tag>/arkiv-git-<tag>-<target>.tar.gz
-https://github.com/chayan-bit/arkiv-git/releases/download/<tag>/arkiv-git-<tag>-<target>.tar.gz.sha256
+https://github.com/chayan-bit/arkiv-git/releases/download/<tag>/SHA256SUMS
 ```
 
 For v0.1.0 on Apple Silicon macOS the archive is `https://github.com/chayan-bit/arkiv-git/releases/download/v0.1.0/arkiv-git-v0.1.0-aarch64-apple-darwin.tar.gz`.
@@ -22,8 +22,8 @@ TAG=v0.1.0
 TARGET=aarch64-apple-darwin   # or x86_64-unknown-linux-gnu
 BASE=https://github.com/chayan-bit/arkiv-git/releases/download/$TAG
 curl -fsSLO "$BASE/arkiv-git-$TAG-$TARGET.tar.gz"
-curl -fsSLO "$BASE/arkiv-git-$TAG-$TARGET.tar.gz.sha256"
-shasum -a 256 -c "arkiv-git-$TAG-$TARGET.tar.gz.sha256"
+curl -fsSLO "$BASE/SHA256SUMS"
+shasum -a 256 -c --ignore-missing SHA256SUMS
 mkdir -p ~/.local/bin
 tar xzf "arkiv-git-$TAG-$TARGET.tar.gz" -C ~/.local/bin git-remote-arkiv arkiv-git arkiv-git-mcp
 export PATH="$HOME/.local/bin:$PATH"
